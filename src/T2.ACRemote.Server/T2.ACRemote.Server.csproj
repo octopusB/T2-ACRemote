@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup><Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration><Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform><ProjectGuid>{941DD282-257C-4CAA-B9BE-5A4DBD12BBA5}</ProjectGuid><OutputType>Exe</OutputType><RootNamespace>T2.ACRemote.Server</RootNamespace><AssemblyName>T2.ACRemote.Server</AssemblyName><TargetFrameworkVersion>v4.8</TargetFrameworkVersion><LangVersion>5</LangVersion></PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' "><OutputPath>bin\Debug\</OutputPath><DebugSymbols>true</DebugSymbols><DebugType>full</DebugType><DefineConstants>DEBUG;TRACE</DefineConstants></PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' "><OutputPath>bin\Release\</OutputPath><Optimize>true</Optimize><DefineConstants>TRACE</DefineConstants></PropertyGroup>
+  <ItemGroup><Reference Include="System"/><Reference Include="System.Core"/><Reference Include="System.Configuration"/><Reference Include="System.Runtime.Serialization"/></ItemGroup>
+  <ItemGroup><ProjectReference Include="..\T2.ACRemote.Common\T2.ACRemote.Common.csproj"><Project>{7D963F2A-AB71-40A7-9400-AD1150C8B18A}</Project><Name>T2.ACRemote.Common</Name></ProjectReference></ItemGroup>
+  <ItemGroup><Compile Include="Program.cs"/><Compile Include="BridgeRegistry.cs"/><Compile Include="HttpApi.cs"/></ItemGroup>
+  <ItemGroup><None Include="App.config"/></ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+</Project>
