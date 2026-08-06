@@ -1,0 +1,20 @@
+name: build
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: microsoft/setup-msbuild@v2
+      - name: Build
+        run: msbuild T2.ACRemote.sln /t:Rebuild /p:Configuration=Release /m
+      - name: Run safety-state tests
+        run: .\tests\T2.ACRemote.Tests\bin\Release\T2.ACRemote.Tests.exe
+
