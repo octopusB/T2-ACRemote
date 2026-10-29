@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using T2.ACRemote.Bridge;
 using T2.ACRemote.Common;
 
 namespace T2.ACRemote.Tests

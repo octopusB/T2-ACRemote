@@ -7,6 +7,5 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\T2.ACRemote.Common\T2.ACRemote.Common.csproj" />
-    <ProjectReference Include="..\..\src\T2.ACRemote.Bridge\T2.ACRemote.Bridge.csproj" />
   </ItemGroup>
 </Project>
