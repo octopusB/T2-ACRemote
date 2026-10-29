@@ -40,10 +40,10 @@ dotnet build T2.ACRemote.sln -c Release
 dotnet run --project tests\T2.ACRemote.Tests\T2.ACRemote.Tests.csproj -c Release --no-build
 
 dotnet publish src\T2.ACRemote.Bridge\T2.ACRemote.Bridge.csproj `
-  -c Release -r win-x86 --self-contained true -o artifacts\bridge
+  -p:PublishProfile=SingleFile-x86 -o artifacts\bridge
 
 dotnet publish src\T2.ACRemote.Server\T2.ACRemote.Server.csproj `
-  -c Release -r win-x86 --self-contained true -o artifacts\server
+  -p:PublishProfile=SingleFile-x86 -o artifacts\server
 ```
 
 发布结果分别只有：
@@ -54,6 +54,8 @@ artifacts\server\T2.ACRemote.Server.exe
 ```
 
 EXE 内含 .NET 运行时，不要求目标计算机安装 .NET Framework。
+
+在 Visual Studio 中也可右键项目选择“发布”，然后选择仓库自带的 `SingleFile-x86` 配置文件。
 
 ## 配置与运行
 

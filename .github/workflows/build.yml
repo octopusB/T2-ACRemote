@@ -22,8 +22,8 @@ jobs:
       - name: Publish single-file x86 programs
         shell: pwsh
         run: |
-          dotnet publish .\src\T2.ACRemote.Bridge\T2.ACRemote.Bridge.csproj -c Release -r win-x86 --self-contained true -o .\artifacts\bridge
-          dotnet publish .\src\T2.ACRemote.Server\T2.ACRemote.Server.csproj -c Release -r win-x86 --self-contained true -o .\artifacts\server
+          dotnet publish .\src\T2.ACRemote.Bridge\T2.ACRemote.Bridge.csproj -p:PublishProfile=SingleFile-x86 -o .\artifacts\bridge
+          dotnet publish .\src\T2.ACRemote.Server\T2.ACRemote.Server.csproj -p:PublishProfile=SingleFile-x86 -o .\artifacts\server
           $bridge = @(Get-ChildItem .\artifacts\bridge -File)
           $server = @(Get-ChildItem .\artifacts\server -File)
           if ($bridge.Count -ne 1 -or $bridge[0].Name -ne 'T2.ACRemote.Bridge.exe') { throw "Bridge publish is not a single EXE." }
