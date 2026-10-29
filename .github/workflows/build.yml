@@ -26,6 +26,8 @@ jobs:
           dotnet publish .\src\T2.ACRemote.Server\T2.ACRemote.Server.csproj -p:PublishProfile=SingleFile-x86 -o .\artifacts\server
           $bridge = @(Get-ChildItem .\artifacts\bridge -File)
           $server = @(Get-ChildItem .\artifacts\server -File)
+          Write-Host "Bridge output: $($bridge.Name -join ', ')"
+          Write-Host "Server output: $($server.Name -join ', ')"
           if ($bridge.Count -ne 1 -or $bridge[0].Name -ne 'T2.ACRemote.Bridge.exe') { throw "Bridge publish is not a single EXE." }
           if ($server.Count -ne 1 -or $server[0].Name -ne 'T2.ACRemote.Server.exe') { throw "Server publish is not a single EXE." }
       - uses: actions/upload-artifact@v4
