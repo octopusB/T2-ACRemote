@@ -1,5 +1,5 @@
 using System;
-using System.Configuration;
+using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
@@ -10,8 +10,19 @@ namespace T2.ACRemote.Server
     internal static class Program
     {
         private static volatile bool _stopping;
-        private static void Main()
+        private static RuntimeSettings _settings;
+
+        private static void Main(string[] args)
         {
+            if (RuntimeSettings.WantsHelp(args)) { PrintHelp(); return; }
+            _settings = new RuntimeSettings(args, new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                { "BridgeListenPort", "19001" },
+                { "HttpPrefix", "http://+:19002/" },
+                { "SharedSecret", "CHANGE-THIS-BRIDGE-SHARED-SECRET" },
+                { "ApiKey", "CHANGE-THIS-OPERATOR-API-KEY" },
+                { "DefaultLeaseSeconds", "300" }
+            });
             Console.CancelKeyPress += (s, e) => { e.Cancel = true; _stopping = true; };
             var registry = new BridgeRegistry();
             var bridgeListener = new TcpListener(IPAddress.Any, GetInt("BridgeListenPort"));
@@ -56,8 +67,17 @@ namespace T2.ACRemote.Server
             }
             catch (Exception ex) { Console.WriteLine("{0:O} 工控机连接失败: {1}", DateTime.UtcNow, ex.Message); try { client.Close(); } catch { } }
         }
-        private static string Get(string key) { var value = ConfigurationManager.AppSettings[key]; if (string.IsNullOrWhiteSpace(value)) throw new ConfigurationErrorsException("Missing appSetting: " + key); return value; }
-        private static int GetInt(string key) { return int.Parse(Get(key)); }
+        private static string Get(string key) { return _settings.Get(key); }
+        private static int GetInt(string key) { return _settings.GetInt(key); }
+
+        private static void PrintHelp()
+        {
+            Console.WriteLine("T2.ACRemote.Server 单文件版");
+            Console.WriteLine("参数格式: --名称=值；也可使用 T2AC_名称 环境变量。");
+            Console.WriteLine("示例:");
+            Console.WriteLine("  T2.ACRemote.Server.exe --SharedSecret=至少16位密钥 --ApiKey=管理密钥");
+            Console.WriteLine("可用参数: BridgeListenPort, HttpPrefix, SharedSecret, ApiKey, DefaultLeaseSeconds");
+        }
     }
 }
 

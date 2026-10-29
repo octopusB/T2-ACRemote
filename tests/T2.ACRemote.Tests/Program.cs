@@ -1,5 +1,5 @@
 using System;
-using T2.ACRemote.Bridge;
+using System.Collections.Generic;
 using T2.ACRemote.Common;
 
 namespace T2.ACRemote.Tests
@@ -10,6 +10,7 @@ namespace T2.ACRemote.Tests
         private static void Main()
         {
             StartWhenStopped(); RejectStartWhenRunning(); StopWhenRunning(); StopWhenStopped(); ReleaseRestoresLinkage(); BridgeStartReleasesRemoteStart(); BridgeStopReleasesRemoteStop();
+            CommandLineSettingsOverrideDefaults(); EnvironmentSettingsOverrideDefaults();
             Console.WriteLine("PASS: " + _tests + " safety-state tests");
         }
         private static void StartWhenStopped() { var f = new Fake(); var r = Controller(f).Apply(C(ControlMode.RemoteStart)); Yes(r.Success && f.Do1 && !f.Do2, "remote start"); }
@@ -19,6 +20,8 @@ namespace T2.ACRemote.Tests
         private static void ReleaseRestoresLinkage() { var f = new Fake { Do1 = true, Do2 = true }; Controller(f).Apply(C(ControlMode.Release)); Yes(!f.Do1 && !f.Do2, "release linkage"); }
         private static void BridgeStartReleasesRemoteStart() { var f = new Fake(); var c = Controller(f); c.Apply(C(ControlMode.RemoteStart)); f.Di1 = true; c.Poll(); Yes(!f.Do1 && !f.Do2, "bridge start safety release"); }
         private static void BridgeStopReleasesRemoteStop() { var f = new Fake { Di1 = true }; var c = Controller(f); c.Apply(C(ControlMode.RemoteStop)); f.Di1 = false; c.Poll(); Yes(!f.Do1 && !f.Do2, "bridge stop restores original circuit"); }
+        private static void CommandLineSettingsOverrideDefaults() { var s = new RuntimeSettings(new[] { "--ServerPort=20001" }, new Dictionary<string, string> { { "ServerPort", "19001" } }); Yes(s.GetInt("ServerPort") == 20001, "command-line settings"); }
+        private static void EnvironmentSettingsOverrideDefaults() { Environment.SetEnvironmentVariable("T2AC_TESTVALUE", "from-environment"); try { var s = new RuntimeSettings(new string[0], new Dictionary<string, string> { { "TestValue", "default" } }); Yes(s.Get("TestValue") == "from-environment", "environment settings"); } finally { Environment.SetEnvironmentVariable("T2AC_TESTVALUE", null); } }
         private static AirConditionerController Controller(Fake f) { return new AirConditionerController(f, "B1"); }
         private static CommandMessage C(ControlMode mode) { return new CommandMessage { RequestId = Guid.NewGuid().ToString(), Mode = mode, LeaseSeconds = 60 }; }
         private static void Yes(bool condition, string name) { _tests++; if (!condition) throw new Exception("FAILED: " + name); }

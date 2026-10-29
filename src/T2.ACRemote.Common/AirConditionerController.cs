@@ -1,7 +1,6 @@
 using System;
-using T2.ACRemote.Common;
 
-namespace T2.ACRemote.Bridge
+namespace T2.ACRemote.Common
 {
     public sealed class AirConditionerController
     {
@@ -73,4 +72,3 @@ namespace T2.ACRemote.Bridge
         private static CommandResult Failure(string id, string message, BridgeStatus status) { return new CommandResult { RequestId = id, Success = false, Message = message, Status = status }; }
     }
 }
-
