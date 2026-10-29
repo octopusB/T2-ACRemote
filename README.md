@@ -1,6 +1,6 @@
 # T2 廊道空调远程控制
 
-面向登机桥工控机与 USR-IO424T-EWR V2 网络 IO 的两级远程控制系统，使用 C# 和 .NET Framework 4.8。
+面向登机桥工控机与 USR-IO424T-EWR V2 网络 IO 的两级远程控制系统，使用 C# 和 .NET 10。Server 与 Bridge 可发布为携带运行时的 32 位单文件 EXE。
 
 ## 架构
 
@@ -31,20 +31,42 @@
 - 非 `Release` 命令带有限时租约（默认 300 秒，10-3600 秒范围），超时自动释放两路输出。
 - 工控机正常退出时尝试释放两路输出。断网/异常断电仍应由电气设计、设备 DO 掉电不保持配置和现场安全规程兜底。
 
-## 构建
+## 构建与单文件发布
 
-安装 Visual Studio 2022 或 Build Tools，并勾选“.NET 桌面生成工具”和 .NET Framework 4.8 Developer Pack：
+安装带 .NET 10 SDK 的 Visual Studio 或独立 .NET 10 SDK：
 
 ```powershell
-msbuild T2.ACRemote.sln /t:Rebuild /p:Configuration=Release
-tests\T2.ACRemote.Tests\bin\Release\T2.ACRemote.Tests.exe
+dotnet build T2.ACRemote.sln -c Release
+dotnet run --project tests\T2.ACRemote.Tests\T2.ACRemote.Tests.csproj -c Release --no-build
+
+dotnet publish src\T2.ACRemote.Bridge\T2.ACRemote.Bridge.csproj `
+  -c Release -r win-x86 --self-contained true -o artifacts\bridge
+
+dotnet publish src\T2.ACRemote.Server\T2.ACRemote.Server.csproj `
+  -c Release -r win-x86 --self-contained true -o artifacts\server
 ```
+
+发布结果分别只有：
+
+```text
+artifacts\bridge\T2.ACRemote.Bridge.exe
+artifacts\server\T2.ACRemote.Server.exe
+```
+
+EXE 内含 .NET 运行时，不要求目标计算机安装 .NET Framework。
 
 ## 配置与运行
 
 1. 在 IO 控制器中配置固定 IP、Modbus 从机模式和 TCPS 监听端口。
-2. 复制并修改两个程序的 `.config`，尤其是 `SharedSecret`、`ApiKey`、设备 IP 和唯一 `BridgeId`。
-3. 先启动 `T2.ACRemote.Server.exe`，再在各工控机启动 `T2.ACRemote.Bridge.exe`。
+2. 先启动 `T2.ACRemote.Server.exe`，再在各工控机启动 `T2.ACRemote.Bridge.exe`。直接双击时使用内置默认参数。
+3. 需要修改参数时，在 Windows 快捷方式“目标”末尾追加 `--名称=值`，或者设置同名的 `T2AC_名称` 环境变量。例如：
+
+   ```text
+   T2.ACRemote.Server.exe --SharedSecret=至少16位共享密钥 --ApiKey=管理密钥
+   T2.ACRemote.Bridge.exe --BridgeId=T2-BRIDGE-001 --ServerHost=192.168.1.100 --SharedSecret=至少16位共享密钥 --IoHost=192.168.10.1
+   ```
+
+   可用参数可通过 `程序.exe --help` 查看。命令行优先于环境变量，环境变量优先于内置默认值。
 4. 服务器首次使用 `http://服务器地址:19002/`；Windows 可能需要管理员执行：
 
    ```powershell
@@ -52,6 +74,8 @@ tests\T2.ACRemote.Tests\bin\Release\T2.ACRemote.Tests.exe
    ```
 
 5. 防火墙仅允许工控机访问 TCP 19001，仅允许管理网访问 TCP 19002。
+
+> 兼容性警告：微软不支持 .NET 10 在 Windows 7/Windows Embedded Standard 7 上运行。此 `win-x86` 单文件版本是按用户现有 .NET 10 项目的发布方式生成，必须在目标工控机上完成启动、网络、加密、Modbus、长时间运行和异常恢复测试；不能仅以“能够双击启动”作为投产依据。
 
 REST 示例：
 

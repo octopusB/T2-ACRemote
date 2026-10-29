@@ -1,5 +1,5 @@
 using System;
-using System.Configuration;
+using System.Collections.Generic;
 using System.Net.Sockets;
 using System.Threading;
 using T2.ACRemote.Common;
@@ -9,8 +9,22 @@ namespace T2.ACRemote.Bridge
     internal static class Program
     {
         private static volatile bool _stopping;
-        private static void Main()
+        private static RuntimeSettings _settings;
+
+        private static void Main(string[] args)
         {
+            if (RuntimeSettings.WantsHelp(args)) { PrintHelp(); return; }
+            _settings = new RuntimeSettings(args, new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                { "BridgeId", "T2-BRIDGE-001" },
+                { "ServerHost", "127.0.0.1" },
+                { "ServerPort", "19001" },
+                { "SharedSecret", "CHANGE-THIS-BRIDGE-SHARED-SECRET" },
+                { "IoHost", "192.168.10.1" },
+                { "IoPort", "502" },
+                { "ModbusUnitId", "17" },
+                { "PollMilliseconds", "1000" }
+            });
             Console.CancelKeyPress += (s, e) => { e.Cancel = true; _stopping = true; };
             var bridgeId = Get("BridgeId");
             using (var io = new ModbusTcpIo(Get("IoHost"), GetInt("IoPort"), (byte)GetInt("ModbusUnitId")))
@@ -58,9 +72,18 @@ namespace T2.ACRemote.Bridge
             }
         }
 
-        private static string Get(string key) { var value = ConfigurationManager.AppSettings[key]; if (string.IsNullOrWhiteSpace(value)) throw new ConfigurationErrorsException("Missing appSetting: " + key); return value; }
-        private static int GetInt(string key) { return int.Parse(Get(key)); }
+        private static string Get(string key) { return _settings.Get(key); }
+        private static int GetInt(string key) { return _settings.GetInt(key); }
         private static void Log(string message) { Console.WriteLine("{0:O} {1}", DateTime.UtcNow, message); }
+
+        private static void PrintHelp()
+        {
+            Console.WriteLine("T2.ACRemote.Bridge 单文件版");
+            Console.WriteLine("参数格式: --名称=值；也可使用 T2AC_名称 环境变量。");
+            Console.WriteLine("示例:");
+            Console.WriteLine("  T2.ACRemote.Bridge.exe --BridgeId=T2-BRIDGE-001 --ServerHost=192.168.1.100 --IoHost=192.168.10.1");
+            Console.WriteLine("可用参数: BridgeId, ServerHost, ServerPort, SharedSecret, IoHost, IoPort, ModbusUnitId, PollMilliseconds");
+        }
     }
 }
 
