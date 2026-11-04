@@ -2,16 +2,10 @@ using System;
 using System.IO;
 using System.Net;
 using System.Net.Sockets;
+using T2.ACRemote.Common;
 
 namespace T2.ACRemote.Bridge
 {
-    public interface IIoController
-    {
-        bool ReadBridgeRunning();
-        bool ReadOutput(int outputIndex);
-        void WriteOutput(int outputIndex, bool closed);
-    }
-
     public sealed class ModbusTcpIo : IIoController, IDisposable
     {
         private readonly string _host;

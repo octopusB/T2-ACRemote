@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>廊道空调远程控制</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">T2 · AIR-CONDITIONING CONTROL</p>
+      <h1>廊道空调远程控制</h1>
+    </div>
+    <div class="connection" aria-live="polite">
+      <span id="connectionDot" class="dot dot-idle"></span>
+      <span id="connectionText">等待连接</span>
+    </div>
+  </header>
+
+  <main>
+    <section class="panel config-panel" aria-labelledby="configTitle">
+      <div class="section-heading">
+        <div>
+          <p class="section-kicker">CONNECTION</p>
+          <h2 id="configTitle">服务器连接</h2>
+        </div>
+        <button id="refreshButton" class="button button-primary" type="button">刷新状态</button>
+      </div>
+      <div class="config-grid">
+        <label>
+          <span>Server API 地址</span>
+          <input id="apiBase" type="url" value="http://10.1.3.5:19002" autocomplete="url" spellcheck="false">
+        </label>
+        <label>
+          <span>API Key</span>
+          <input id="apiKey" type="password" autocomplete="off" placeholder="输入服务器 ApiKey">
+        </label>
+      </div>
+      <div class="config-actions">
+        <label class="auto-refresh"><input id="autoRefresh" type="checkbox" checked> 每 3 秒自动刷新</label>
+        <button id="saveButton" class="button button-secondary" type="button">保存连接设置</button>
+      </div>
+      <p id="message" class="message" role="status">API Key 仅保存在当前浏览器标签页中。</p>
+    </section>
+
+    <section class="summary-grid" aria-label="状态摘要">
+      <article class="metric"><span>工控机总数</span><strong id="bridgeCount">—</strong></article>
+      <article class="metric"><span>登机桥运行</span><strong id="runningCount">—</strong></article>
+      <article class="metric"><span>远程启动</span><strong id="remoteStartCount">—</strong></article>
+      <article class="metric"><span>远程切断</span><strong id="remoteStopCount">—</strong></article>
+    </section>
+
+    <section class="panel" aria-labelledby="bridgesTitle">
+      <div class="section-heading">
+        <div>
+          <p class="section-kicker">BRIDGES</p>
+          <h2 id="bridgesTitle">登机桥状态</h2>
+        </div>
+        <span id="lastUpdated" class="last-updated">尚未刷新</span>
+      </div>
+      <div id="emptyState" class="empty-state">
+        <strong>等待状态数据</strong>
+        <span>填写 API Key 后点击“刷新状态”。</span>
+      </div>
+      <div class="table-wrap">
+        <table id="bridgeTable" hidden>
+          <thead>
+            <tr>
+              <th>Bridge ID</th>
+              <th>登机桥 DI1</th>
+              <th>远程启动 DO1</th>
+              <th>切断联动 DO2</th>
+              <th>控制模式</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody id="bridgeRows"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="safety-note" aria-label="安全提示">
+      <strong>操作安全提示</strong>
+      <span>执行远程控制前，必须确认现场无人检修，并遵守机场设备操作规程。</span>
+    </section>
+  </main>
+
+  <dialog id="confirmDialog">
+    <form method="dialog">
+      <p class="section-kicker">CONFIRM ACTION</p>
+      <h2 id="confirmTitle">确认操作</h2>
+      <p id="confirmMessage"></p>
+      <div class="dialog-actions">
+        <button class="button button-secondary" value="cancel">取消</button>
+        <button id="confirmButton" class="button button-danger" value="confirm">确认执行</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="app.js" defer></script>
+</body>
+</html>
