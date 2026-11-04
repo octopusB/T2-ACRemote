@@ -21,6 +21,7 @@ namespace T2.ACRemote.Server
                 { "HttpPrefix", "http://+:19002/" },
                 { "SharedSecret", "CHANGE-THIS-BRIDGE-SHARED-SECRET" },
                 { "ApiKey", "CHANGE-THIS-OPERATOR-API-KEY" },
+                { "AllowedOrigins", "http://10.1.3.5:8080,http://localhost:8080" },
                 { "DefaultLeaseSeconds", "300" }
             });
             Console.CancelKeyPress += (s, e) => { e.Cancel = true; _stopping = true; };
@@ -29,7 +30,7 @@ namespace T2.ACRemote.Server
             bridgeListener.Start();
             var acceptThread = new Thread(() => AcceptBridges(bridgeListener, registry)) { IsBackground = true };
             acceptThread.Start();
-            var api = new HttpApi(registry, Get("HttpPrefix"), Get("ApiKey"), GetInt("DefaultLeaseSeconds"));
+            var api = new HttpApi(registry, Get("HttpPrefix"), Get("ApiKey"), Get("AllowedOrigins"), GetInt("DefaultLeaseSeconds"));
             api.Start();
             Console.WriteLine("服务器已启动。工控机端口 {0}，管理地址 {1}", GetInt("BridgeListenPort"), Get("HttpPrefix"));
             while (!_stopping) Thread.Sleep(500);
@@ -76,7 +77,7 @@ namespace T2.ACRemote.Server
             Console.WriteLine("参数格式: --名称=值；也可使用 T2AC_名称 环境变量。");
             Console.WriteLine("示例:");
             Console.WriteLine("  T2.ACRemote.Server.exe --SharedSecret=至少16位密钥 --ApiKey=管理密钥");
-            Console.WriteLine("可用参数: BridgeListenPort, HttpPrefix, SharedSecret, ApiKey, DefaultLeaseSeconds");
+            Console.WriteLine("可用参数: BridgeListenPort, HttpPrefix, SharedSecret, ApiKey, AllowedOrigins, DefaultLeaseSeconds");
         }
     }
 }

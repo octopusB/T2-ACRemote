@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Net;
 using System.Text;
 using System.Threading;
@@ -11,13 +12,20 @@ namespace T2.ACRemote.Server
         private readonly BridgeRegistry _registry;
         private readonly HttpListener _listener = new HttpListener();
         private readonly string _apiKey;
+        private readonly HashSet<string> _allowedOrigins;
         private readonly int _defaultLease;
         private Thread _thread;
 
-        public HttpApi(BridgeRegistry registry, string prefix, string apiKey, int defaultLease)
+        public HttpApi(BridgeRegistry registry, string prefix, string apiKey, string allowedOrigins, int defaultLease)
         {
             _registry = registry;
             _apiKey = apiKey;
+            _allowedOrigins = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var origin in (allowedOrigins ?? string.Empty).Split(','))
+            {
+                var value = origin.Trim().TrimEnd('/');
+                if (value.Length > 0) _allowedOrigins.Add(value);
+            }
             _defaultLease = defaultLease;
             _listener.Prefixes.Add(prefix);
         }
@@ -44,6 +52,12 @@ namespace T2.ACRemote.Server
         {
             try
             {
+                ApplyCors(context);
+                if (context.Request.HttpMethod == "OPTIONS")
+                {
+                    Write(context, 204, "text/plain; charset=utf-8", string.Empty);
+                    return;
+                }
                 var path = context.Request.Url.AbsolutePath.Trim('/');
                 if (path.Length == 0 && context.Request.HttpMethod == "GET")
                 {
@@ -95,6 +109,18 @@ namespace T2.ACRemote.Server
         private static void WriteJson<T>(HttpListenerContext context, int code, T value)
         {
             Write(context, code, "application/json; charset=utf-8", Json.Serialize(value));
+        }
+
+        private void ApplyCors(HttpListenerContext context)
+        {
+            var origin = context.Request.Headers["Origin"];
+            if (string.IsNullOrWhiteSpace(origin)) return;
+            origin = origin.TrimEnd('/');
+            if (!_allowedOrigins.Contains(origin)) return;
+            context.Response.Headers["Access-Control-Allow-Origin"] = origin;
+            context.Response.Headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS";
+            context.Response.Headers["Access-Control-Allow-Headers"] = "X-Api-Key, Content-Type";
+            context.Response.Headers["Vary"] = "Origin";
         }
 
         private static void Write(HttpListenerContext context, int code, string contentType, string body)

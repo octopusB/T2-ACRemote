@@ -57,6 +57,16 @@ EXE 内含 .NET 运行时，不要求目标计算机安装 .NET Framework。
 
 在 Visual Studio 中也可右键项目选择“发布”，然后选择仓库自带的 `SingleFile-x86` 配置文件。
 
+## 独立前端
+
+`frontend` 目录提供无构建依赖的 HTML/CSS/JavaScript 控制台，可部署到 IIS、Nginx 或任意静态文件服务器。开发测试可在仓库根目录运行：
+
+```powershell
+python -m http.server 8080 --directory frontend
+```
+
+访问 `http://localhost:8080/`，填写 Server API 地址与 API Key。Server 默认允许 `http://10.1.3.5:8080` 和 `http://localhost:8080` 跨域访问；部署到其他地址时，通过 `--AllowedOrigins=来源1,来源2` 明确配置允许来源。
+
 ## 配置与运行
 
 1. 在 IO 控制器中配置固定 IP、Modbus 从机模式和 TCPS 监听端口。
@@ -64,7 +74,7 @@ EXE 内含 .NET 运行时，不要求目标计算机安装 .NET Framework。
 3. 需要修改参数时，在 Windows 快捷方式“目标”末尾追加 `--名称=值`，或者设置同名的 `T2AC_名称` 环境变量。例如：
 
    ```text
-   T2.ACRemote.Server.exe --SharedSecret=至少16位共享密钥 --ApiKey=管理密钥
+   T2.ACRemote.Server.exe --SharedSecret=至少16位共享密钥 --ApiKey=管理密钥 --AllowedOrigins=http://10.1.3.5:8080
    T2.ACRemote.Bridge.exe --BridgeId=275 --ServerHost=10.1.3.5 --SharedSecret=至少16位共享密钥 --IoHost=192.168.10.1
    ```
 
