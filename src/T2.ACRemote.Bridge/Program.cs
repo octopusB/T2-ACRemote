@@ -21,7 +21,7 @@ namespace T2.ACRemote.Bridge
                 { "ServerPort", "19001" },
                 { "SharedSecret", "CHANGE-THIS-BRIDGE-SHARED-SECRET" },
                 { "IoHost", "192.168.10.1" },
-                { "IoPort", "502" },
+                { "IoPort", "28899" },
                 { "ModbusUnitId", "17" },
                 { "PollMilliseconds", "1000" }
             });
