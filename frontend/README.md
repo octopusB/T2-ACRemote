@@ -25,6 +25,9 @@ http://localhost:8080/
 ```text
 http://10.1.3.5:8080
 http://localhost:8080
+http://localhost:18080
+http://127.0.0.1:8080
+http://127.0.0.1:18080
 ```
 
 可通过命令行修改，多个来源使用英文逗号分隔：

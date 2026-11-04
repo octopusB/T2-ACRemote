@@ -21,7 +21,7 @@ namespace T2.ACRemote.Server
                 { "HttpPrefix", "http://+:19002/" },
                 { "SharedSecret", "CHANGE-THIS-BRIDGE-SHARED-SECRET" },
                 { "ApiKey", "CHANGE-THIS-OPERATOR-API-KEY" },
-                { "AllowedOrigins", "http://10.1.3.5:8080,http://localhost:8080" },
+                { "AllowedOrigins", "http://10.1.3.5:8080,http://localhost:8080,http://localhost:18080,http://127.0.0.1:8080,http://127.0.0.1:18080" },
                 { "DefaultLeaseSeconds", "300" }
             });
             Console.CancelKeyPress += (s, e) => { e.Cancel = true; _stopping = true; };

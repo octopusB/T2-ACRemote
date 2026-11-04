@@ -65,7 +65,7 @@ EXE 内含 .NET 运行时，不要求目标计算机安装 .NET Framework。
 python -m http.server 8080 --directory frontend
 ```
 
-访问 `http://localhost:8080/`，填写 Server API 地址与 API Key。Server 默认允许 `http://10.1.3.5:8080` 和 `http://localhost:8080` 跨域访问；部署到其他地址时，通过 `--AllowedOrigins=来源1,来源2` 明确配置允许来源。
+访问 `http://localhost:8080/`，填写 Server API 地址与 API Key。Server 默认允许 `10.1.3.5:8080` 以及本机 `localhost/127.0.0.1` 的 `8080`、`18080` 端口跨域访问，并支持浏览器私有网络访问预检；部署到其他地址时，通过 `--AllowedOrigins=来源1,来源2` 明确配置允许来源。
 
 ## 配置与运行
 

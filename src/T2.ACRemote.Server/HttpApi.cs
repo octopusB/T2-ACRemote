@@ -120,6 +120,9 @@ namespace T2.ACRemote.Server
             context.Response.Headers["Access-Control-Allow-Origin"] = origin;
             context.Response.Headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS";
             context.Response.Headers["Access-Control-Allow-Headers"] = "X-Api-Key, Content-Type";
+            if (string.Equals(context.Request.Headers["Access-Control-Request-Private-Network"], "true", StringComparison.OrdinalIgnoreCase))
+                context.Response.Headers["Access-Control-Allow-Private-Network"] = "true";
+            context.Response.Headers["Access-Control-Max-Age"] = "600";
             context.Response.Headers["Vary"] = "Origin";
         }
 
