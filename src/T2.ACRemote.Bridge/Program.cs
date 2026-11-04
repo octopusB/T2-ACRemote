@@ -16,8 +16,8 @@ namespace T2.ACRemote.Bridge
             if (RuntimeSettings.WantsHelp(args)) { PrintHelp(); return; }
             _settings = new RuntimeSettings(args, new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
-                { "BridgeId", "T2-BRIDGE-001" },
-                { "ServerHost", "127.0.0.1" },
+                { "BridgeId", "275" },
+                { "ServerHost", "10.1.3.5" },
                 { "ServerPort", "19001" },
                 { "SharedSecret", "CHANGE-THIS-BRIDGE-SHARED-SECRET" },
                 { "IoHost", "192.168.10.1" },
@@ -81,7 +81,7 @@ namespace T2.ACRemote.Bridge
             Console.WriteLine("T2.ACRemote.Bridge 单文件版");
             Console.WriteLine("参数格式: --名称=值；也可使用 T2AC_名称 环境变量。");
             Console.WriteLine("示例:");
-            Console.WriteLine("  T2.ACRemote.Bridge.exe --BridgeId=T2-BRIDGE-001 --ServerHost=192.168.1.100 --IoHost=192.168.10.1");
+            Console.WriteLine("  T2.ACRemote.Bridge.exe --BridgeId=275 --ServerHost=10.1.3.5 --IoHost=192.168.10.1");
             Console.WriteLine("可用参数: BridgeId, ServerHost, ServerPort, SharedSecret, IoHost, IoPort, ModbusUnitId, PollMilliseconds");
         }
     }

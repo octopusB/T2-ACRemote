@@ -5,10 +5,10 @@
 ## 架构
 
 ```text
-操作员浏览器/REST API -> 服务器程序 <- 长连接/HMAC -> 工控机中转程序 -> Modbus TCP -> USR-IO424T
+独立前端/REST 客户端 -> Server API <- 长连接/HMAC -> 工控机中转程序 -> Modbus TCP -> USR-IO424T
 ```
 
-- 服务器监听工控机主动连接，维护登机桥在线状态并提供浏览器控制台和 REST API。
+- 服务器监听工控机主动连接，维护登机桥在线状态并只提供 JSON REST API；前端单独部署。
 - 工控机轮询 DI1，通过 DO1 控制新增并联启动回路，通过 DO2 控制串联于原启动回路的常闭继电器。
 - 通信帧使用 HMAC-SHA256 验证，HTTP API 使用 `X-Api-Key`。生产环境仍应部署在机场专网/VPN 内，并在反向代理终止 HTTPS。
 
@@ -65,11 +65,11 @@ EXE 内含 .NET 运行时，不要求目标计算机安装 .NET Framework。
 
    ```text
    T2.ACRemote.Server.exe --SharedSecret=至少16位共享密钥 --ApiKey=管理密钥
-   T2.ACRemote.Bridge.exe --BridgeId=T2-BRIDGE-001 --ServerHost=192.168.1.100 --SharedSecret=至少16位共享密钥 --IoHost=192.168.10.1
+   T2.ACRemote.Bridge.exe --BridgeId=275 --ServerHost=10.1.3.5 --SharedSecret=至少16位共享密钥 --IoHost=192.168.10.1
    ```
 
    可用参数可通过 `程序.exe --help` 查看。命令行优先于环境变量，环境变量优先于内置默认值。
-4. 服务器首次使用 `http://服务器地址:19002/`；Windows 可能需要管理员执行：
+4. Server API 默认地址为 `http://服务器地址:19002/`，根路径返回 JSON 服务信息，不再提供内嵌网页；Windows 可能需要管理员执行：
 
    ```powershell
    netsh http add urlacl url=http://+:19002/ user=DOMAIN\service-account
@@ -84,9 +84,9 @@ REST 示例：
 ```powershell
 $headers = @{ 'X-Api-Key' = 'your-api-key' }
 Invoke-RestMethod http://server:19002/api/bridges -Headers $headers
-Invoke-RestMethod -Method Post http://server:19002/api/bridges/T2-BRIDGE-001/air-conditioner/start -Headers $headers
-Invoke-RestMethod -Method Post http://server:19002/api/bridges/T2-BRIDGE-001/air-conditioner/stop -Headers $headers
-Invoke-RestMethod -Method Post http://server:19002/api/bridges/T2-BRIDGE-001/air-conditioner/release -Headers $headers
+Invoke-RestMethod -Method Post http://server:19002/api/bridges/275/air-conditioner/start -Headers $headers
+Invoke-RestMethod -Method Post http://server:19002/api/bridges/275/air-conditioner/stop -Headers $headers
+Invoke-RestMethod -Method Post http://server:19002/api/bridges/275/air-conditioner/release -Headers $headers
 ```
 
 ## 投产前必须验证
