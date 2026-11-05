@@ -11,6 +11,7 @@ namespace T2.ACRemote.Tests
         {
             StartWhenStopped(); RejectStartWhenRunning(); StopWhenRunning(); StopWhenStopped(); ReleaseRestoresLinkage(); BridgeStartReleasesRemoteStart(); BridgeStopReleasesRemoteStop();
             CommandLineSettingsOverrideDefaults(); EnvironmentSettingsOverrideDefaults();
+            MultiBridgeStandNormalization(); FlightWindowStartsEarly(); FlightWindowClosesAfterIdle();
             Console.WriteLine("PASS: " + _tests + " safety-state tests");
         }
         private static void StartWhenStopped() { var f = new Fake(); var r = Controller(f).Apply(C(ControlMode.RemoteStart)); Yes(r.Success && f.Do1 && !f.Do2, "remote start"); }
@@ -22,6 +23,9 @@ namespace T2.ACRemote.Tests
         private static void BridgeStopReleasesRemoteStop() { var f = new Fake { Di1 = true }; var c = Controller(f); c.Apply(C(ControlMode.RemoteStop)); f.Di1 = false; c.Poll(); Yes(!f.Do1 && !f.Do2, "bridge stop restores original circuit"); }
         private static void CommandLineSettingsOverrideDefaults() { var s = new RuntimeSettings(new[] { "--ServerPort=20001" }, new Dictionary<string, string> { { "ServerPort", "19001" } }); Yes(s.GetInt("ServerPort") == 20001, "command-line settings"); }
         private static void EnvironmentSettingsOverrideDefaults() { Environment.SetEnvironmentVariable("T2AC_TESTVALUE", "from-environment"); try { var s = new RuntimeSettings(new string[0], new Dictionary<string, string> { { "TestValue", "default" } }); Yes(s.Get("TestValue") == "from-environment", "environment settings"); } finally { Environment.SetEnvironmentVariable("T2AC_TESTVALUE", null); } }
+        private static void MultiBridgeStandNormalization() { Yes(FlightLinkageRules.NormalizeStandId("275A") == "275" && FlightLinkageRules.NormalizeStandId("275B") == "275", "multi-bridge stand normalization"); }
+        private static void FlightWindowStartsEarly() { var now = DateTime.UtcNow; Yes(FlightLinkageRules.ShouldRun(now, new[] { now.AddMinutes(10) }, 15, 20), "flight window starts early"); }
+        private static void FlightWindowClosesAfterIdle() { var now = DateTime.UtcNow; Yes(!FlightLinkageRules.ShouldRun(now, new[] { now.AddMinutes(-21) }, 15, 20), "flight window closes after idle"); }
         private static AirConditionerController Controller(Fake f) { return new AirConditionerController(f, "B1"); }
         private static CommandMessage C(ControlMode mode) { return new CommandMessage { RequestId = Guid.NewGuid().ToString(), Mode = mode, LeaseSeconds = 60 }; }
         private static void Yes(bool condition, string name) { _tests++; if (!condition) throw new Exception("FAILED: " + name); }
