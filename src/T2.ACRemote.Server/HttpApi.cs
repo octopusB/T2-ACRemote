@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Net;
 using System.Text;
 using System.Threading;
@@ -10,15 +11,17 @@ namespace T2.ACRemote.Server
     public sealed class HttpApi
     {
         private readonly BridgeRegistry _registry;
+        private readonly FlightLinkageService _flightLinkage;
         private readonly HttpListener _listener = new HttpListener();
         private readonly string _apiKey;
         private readonly HashSet<string> _allowedOrigins;
         private readonly int _defaultLease;
         private Thread _thread;
 
-        public HttpApi(BridgeRegistry registry, string prefix, string apiKey, string allowedOrigins, int defaultLease)
+        public HttpApi(BridgeRegistry registry, FlightLinkageService flightLinkage, string prefix, string apiKey, string allowedOrigins, int defaultLease)
         {
             _registry = registry;
+            _flightLinkage = flightLinkage;
             _apiKey = apiKey;
             _allowedOrigins = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (var origin in (allowedOrigins ?? string.Empty).Split(','))
@@ -74,6 +77,35 @@ namespace T2.ACRemote.Server
                     WriteJson(context, 200, _registry.Statuses());
                     return;
                 }
+                if (path.Equals("api/flights", StringComparison.OrdinalIgnoreCase) && context.Request.HttpMethod == "GET")
+                {
+                    WriteJson(context, 200, _flightLinkage.Flights(context.Request.QueryString["stand"]));
+                    return;
+                }
+                if (path.Equals("api/flight-linkage", StringComparison.OrdinalIgnoreCase) && context.Request.HttpMethod == "GET")
+                {
+                    WriteJson(context, 200, _flightLinkage.Snapshot());
+                    return;
+                }
+                if (path.Equals("api/flight-linkage/settings", StringComparison.OrdinalIgnoreCase) && context.Request.HttpMethod == "POST")
+                {
+                    var update = ReadJson<FlightLinkageSettingsUpdate>(context);
+                    _flightLinkage.UpdateSettings(update.StartBeforeMinutes, update.StopAfterMinutes);
+                    WriteJson(context, 200, _flightLinkage.Settings());
+                    return;
+                }
+                if (path.Equals("api/flight-linkage/all/enable", StringComparison.OrdinalIgnoreCase) && context.Request.HttpMethod == "POST")
+                {
+                    _flightLinkage.SetAllBridgesEnabled(true);
+                    WriteJson(context, 200, _flightLinkage.Snapshot());
+                    return;
+                }
+                if (path.Equals("api/flight-linkage/all/disable", StringComparison.OrdinalIgnoreCase) && context.Request.HttpMethod == "POST")
+                {
+                    _flightLinkage.SetAllBridgesEnabled(false);
+                    WriteJson(context, 200, _flightLinkage.Snapshot());
+                    return;
+                }
 
                 var parts = path.Split('/');
                 if (parts.Length == 3 && parts[0] == "api" && parts[1] == "bridges" && context.Request.HttpMethod == "GET")
@@ -81,6 +113,16 @@ namespace T2.ACRemote.Server
                     var session = _registry.Get(Uri.UnescapeDataString(parts[2]));
                     if (session == null) { WriteJson(context, 404, new ApiResponse { Success = false, Message = "工控机不在线。" }); return; }
                     WriteJson(context, 200, session.LastStatus);
+                    return;
+                }
+                if (parts.Length == 5 && parts[0] == "api" && parts[1] == "bridges" && parts[3] == "flight-linkage" && context.Request.HttpMethod == "POST")
+                {
+                    var bridgeId = Uri.UnescapeDataString(parts[2]);
+                    if (_registry.Get(bridgeId) == null) { WriteJson(context, 404, new ApiResponse { Success = false, Message = "工控机不在线。" }); return; }
+                    if (parts[4] == "enable") _flightLinkage.SetBridgeEnabled(bridgeId, true);
+                    else if (parts[4] == "disable") _flightLinkage.SetBridgeEnabled(bridgeId, false);
+                    else { WriteJson(context, 404, new ApiResponse { Success = false, Message = "未知航班联动操作。" }); return; }
+                    WriteJson(context, 200, _flightLinkage.Snapshot());
                     return;
                 }
                 if (parts.Length == 5 && parts[0] == "api" && parts[1] == "bridges" && parts[3] == "air-conditioner" && context.Request.HttpMethod == "POST")
@@ -109,6 +151,16 @@ namespace T2.ACRemote.Server
         private static void WriteJson<T>(HttpListenerContext context, int code, T value)
         {
             Write(context, code, "application/json; charset=utf-8", Json.Serialize(value));
+        }
+
+        private static T ReadJson<T>(HttpListenerContext context)
+        {
+            using (var reader = new StreamReader(context.Request.InputStream, context.Request.ContentEncoding ?? Encoding.UTF8))
+            {
+                var json = reader.ReadToEnd();
+                if (string.IsNullOrWhiteSpace(json)) throw new InvalidDataException("请求正文不能为空。");
+                return Json.Deserialize<T>(json);
+            }
         }
 
         private void ApplyCors(HttpListenerContext context)

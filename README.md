@@ -10,7 +10,16 @@
 
 - 服务器监听工控机主动连接，维护登机桥在线状态并只提供 JSON REST API；前端单独部署。
 - 工控机轮询 DI1，通过 DO1 控制新增并联启动回路，通过 DO2 控制串联于原启动回路的常闭继电器。
+- 航班联动服务根据预计到达时间提前开启空调，并在到达后的可配置空闲时间内没有新航班时自动关闭；275A、275B 等多桥统一映射到机位 275。
 - 通信帧使用 HMAC-SHA256 验证，HTTP API 使用 `X-Api-Key`。生产环境仍应部署在机场专网/VPN 内，并在反向代理终止 HTTPS。
+
+## 航班联动
+
+- 默认提前 `15` 分钟开启，到达后 `20` 分钟没有新航班时关闭，页面可在 `0-240` 分钟范围内调整。
+- 支持每个 Bridge 单独开启/关闭，也支持一键开启或关闭全部当前在线 Bridge。
+- 模拟数据提供 275、276、277、278、301、302 等机位的未来航班，每 10 秒轻微调整预计到达时间，并自动补充后续航班。
+- `IFlightDataProvider` 是后续数据库接入点。生产实现读取数据库后，只需将记录映射为 `FlightRecord` 并在 Server 启动时替换 `MockFlightDataProvider`。
+- 航班联动关闭时会发送 `Release`，释放 DO1/DO2 并恢复原登机桥联动控制。
 
 ## 说明书映射
 
@@ -67,6 +76,8 @@ python -m http.server 8080 --directory frontend
 
 访问 `http://localhost:8080/`，填写 Server API 地址与 API Key。Server 默认允许 `10.1.3.5:8080` 以及本机 `localhost/127.0.0.1` 的 `8080`、`18080` 端口跨域访问，并支持浏览器私有网络访问预检；部署到其他地址时，通过 `--AllowedOrigins=来源1,来源2` 明确配置允许来源。
 
+前端包含“廊桥控制”和“航班列表”两个视图。在廊桥列表点击“查看该机位航班”会跳转到航班列表并自动筛选机位；例如 275A、275B 均筛选为 275。
+
 ## 配置与运行
 
 1. 在 IO 控制器中配置固定 IP、Modbus 从机模式和 TCPS 监听端口。
@@ -97,6 +108,11 @@ Invoke-RestMethod http://server:19002/api/bridges -Headers $headers
 Invoke-RestMethod -Method Post http://server:19002/api/bridges/275/air-conditioner/start -Headers $headers
 Invoke-RestMethod -Method Post http://server:19002/api/bridges/275/air-conditioner/stop -Headers $headers
 Invoke-RestMethod -Method Post http://server:19002/api/bridges/275/air-conditioner/release -Headers $headers
+Invoke-RestMethod http://server:19002/api/flights -Headers $headers
+Invoke-RestMethod http://server:19002/api/flights?stand=275 -Headers $headers
+Invoke-RestMethod http://server:19002/api/flight-linkage -Headers $headers
+Invoke-RestMethod -Method Post http://server:19002/api/bridges/275/flight-linkage/enable -Headers $headers
+Invoke-RestMethod -Method Post http://server:19002/api/flight-linkage/all/enable -Headers $headers
 ```
 
 ## 投产前必须验证

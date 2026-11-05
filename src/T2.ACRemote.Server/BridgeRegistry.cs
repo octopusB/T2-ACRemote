@@ -15,6 +15,7 @@ namespace T2.ACRemote.Server
         public void Add(BridgeSession session) { BridgeSession old; if (_sessions.TryGetValue(session.BridgeId, out old)) old.Close(); _sessions[session.BridgeId] = session; }
         public void Remove(BridgeSession session) { BridgeSession current; if (_sessions.TryGetValue(session.BridgeId, out current) && ReferenceEquals(current, session)) _sessions.TryRemove(session.BridgeId, out current); }
         public BridgeSession Get(string id) { BridgeSession result; return _sessions.TryGetValue(id, out result) ? result : null; }
+        public IList<string> BridgeIds() { return _sessions.Keys.OrderBy(x => x).ToList(); }
         public IList<BridgeStatus> Statuses() { return _sessions.Values.Select(x => x.LastStatus ?? new BridgeStatus { BridgeId = x.BridgeId, IoConnected = false, UpdatedUtc = DateTime.UtcNow, Error = "等待首个状态上报" }).OrderBy(x => x.BridgeId).ToList(); }
     }
 

@@ -11,33 +11,26 @@
 <body>
   <header class="topbar">
     <div>
-      <p class="eyebrow">T2 · AIR-CONDITIONING CONTROL</p>
+      <p class="eyebrow">T2 · FLIGHT-AWARE AIR-CONDITIONING</p>
       <h1>廊道空调远程控制</h1>
     </div>
-    <div class="connection" aria-live="polite">
-      <span id="connectionDot" class="dot dot-idle"></span>
-      <span id="connectionText">等待连接</span>
-    </div>
+    <div class="connection" aria-live="polite"><span id="connectionDot" class="dot dot-idle"></span><span id="connectionText">等待连接</span></div>
   </header>
+
+  <nav class="view-tabs" aria-label="主视图">
+    <button class="view-tab active" data-view="bridges" type="button">廊桥控制</button>
+    <button class="view-tab" data-view="flights" type="button">航班列表 <span id="flightTabCount" class="tab-count">0</span></button>
+  </nav>
 
   <main>
     <section class="panel config-panel" aria-labelledby="configTitle">
       <div class="section-heading">
-        <div>
-          <p class="section-kicker">CONNECTION</p>
-          <h2 id="configTitle">服务器连接</h2>
-        </div>
-        <button id="refreshButton" class="button button-primary" type="button">刷新状态</button>
+        <div><p class="section-kicker">CONNECTION</p><h2 id="configTitle">服务器连接</h2></div>
+        <button id="refreshButton" class="button button-primary" type="button">刷新全部数据</button>
       </div>
       <div class="config-grid">
-        <label>
-          <span>Server API 地址</span>
-          <input id="apiBase" type="url" value="http://10.1.3.5:19002" autocomplete="url" spellcheck="false">
-        </label>
-        <label>
-          <span>API Key</span>
-          <input id="apiKey" type="password" autocomplete="off" placeholder="输入服务器 ApiKey">
-        </label>
+        <label><span>Server API 地址</span><input id="apiBase" type="url" value="http://10.1.3.5:19002" autocomplete="url" spellcheck="false"></label>
+        <label><span>API Key</span><input id="apiKey" type="password" autocomplete="off" placeholder="输入服务器 ApiKey"></label>
       </div>
       <div class="config-actions">
         <label class="auto-refresh"><input id="autoRefresh" type="checkbox" checked> 每 3 秒自动刷新</label>
@@ -46,60 +39,68 @@
       <p id="message" class="message" role="status">API Key 仅保存在当前浏览器标签页中。</p>
     </section>
 
-    <section class="summary-grid" aria-label="状态摘要">
-      <article class="metric"><span>工控机总数</span><strong id="bridgeCount">—</strong></article>
-      <article class="metric"><span>登机桥运行</span><strong id="runningCount">—</strong></article>
-      <article class="metric"><span>远程启动</span><strong id="remoteStartCount">—</strong></article>
-      <article class="metric"><span>远程切断</span><strong id="remoteStopCount">—</strong></article>
-    </section>
-
-    <section class="panel" aria-labelledby="bridgesTitle">
-      <div class="section-heading">
-        <div>
-          <p class="section-kicker">BRIDGES</p>
-          <h2 id="bridgesTitle">登机桥状态</h2>
+    <section id="bridgesView" class="view active-view">
+      <section class="panel linkage-panel" aria-labelledby="linkageTitle">
+        <div class="section-heading">
+          <div><p class="section-kicker">FLIGHT LINKAGE</p><h2 id="linkageTitle">航班联动设置</h2></div>
+          <div class="bulk-actions">
+            <button id="enableAllButton" class="button button-primary" type="button">一键开启所有桥</button>
+            <button id="disableAllButton" class="button button-secondary" type="button">一键关闭所有桥</button>
+          </div>
         </div>
-        <span id="lastUpdated" class="last-updated">尚未刷新</span>
-      </div>
-      <div id="emptyState" class="empty-state">
-        <strong>等待状态数据</strong>
-        <span>填写 API Key 后点击“刷新状态”。</span>
-      </div>
-      <div class="table-wrap">
-        <table id="bridgeTable" hidden>
-          <thead>
-            <tr>
-              <th>Bridge ID</th>
-              <th>登机桥 DI1</th>
-              <th>远程启动 DO1</th>
-              <th>切断联动 DO2</th>
-              <th>控制模式</th>
-              <th>操作</th>
-            </tr>
-          </thead>
-          <tbody id="bridgeRows"></tbody>
-        </table>
-      </div>
+        <div class="linkage-grid">
+          <label><span>预计到达前多少分钟开启</span><input id="startBeforeMinutes" type="number" min="0" max="240" value="15"><small>允许范围 0–240 分钟</small></label>
+          <label><span>航班后无新航班多少分钟关闭</span><input id="stopAfterMinutes" type="number" min="0" max="240" value="20"><small>时间窗重叠时空调保持开启</small></label>
+          <div class="linkage-save"><span id="allLinkageStatus" class="badge badge-off">未全部启用</span><button id="saveLinkageSettings" class="button button-primary" type="button">保存联动时间</button></div>
+        </div>
+        <p class="source-note">模拟数据源：<strong id="flightDataSource">等待服务器</strong>。后端已预留数据库数据提供接口。</p>
+      </section>
+
+      <section class="summary-grid" aria-label="状态摘要">
+        <article class="metric"><span>工控机总数</span><strong id="bridgeCount">—</strong></article>
+        <article class="metric"><span>航班联动已开启</span><strong id="linkageCount">—</strong></article>
+        <article class="metric"><span>航班窗口内</span><strong id="flightWindowCount">—</strong></article>
+        <article class="metric"><span>远程切断</span><strong id="remoteStopCount">—</strong></article>
+      </section>
+
+      <section class="panel" aria-labelledby="bridgesTitle">
+        <div class="section-heading"><div><p class="section-kicker">BRIDGES</p><h2 id="bridgesTitle">廊桥空调状态</h2></div><span id="lastUpdated" class="last-updated">尚未刷新</span></div>
+        <div id="emptyState" class="empty-state"><strong>等待状态数据</strong><span>填写 API Key 后点击“刷新全部数据”。</span></div>
+        <div class="table-wrap">
+          <table id="bridgeTable" hidden>
+            <thead><tr><th>Bridge ID / 机位</th><th>DI1</th><th>DO1</th><th>DO2</th><th>航班联动</th><th>调度判断</th><th>操作</th></tr></thead>
+            <tbody id="bridgeRows"></tbody>
+          </table>
+        </div>
+      </section>
     </section>
 
-    <section class="safety-note" aria-label="安全提示">
-      <strong>操作安全提示</strong>
-      <span>执行远程控制前，必须确认现场无人检修，并遵守机场设备操作规程。</span>
+    <section id="flightsView" class="view" hidden>
+      <section class="panel" aria-labelledby="flightsTitle">
+        <div class="section-heading">
+          <div><p class="section-kicker">LIVE FLIGHTS · MOCK DATA</p><h2 id="flightsTitle">航班动态列表</h2></div>
+          <div class="flight-filter"><label for="standFilter">机位筛选</label><select id="standFilter"><option value="">全部机位</option></select><button id="clearStandFilter" class="button button-secondary" type="button">清除筛选</button></div>
+        </div>
+        <p class="source-note">预计到达时间会持续轻微浮动，用于模拟实时航班数据。当前来源：<strong id="flightListSource">—</strong></p>
+        <div id="flightEmptyState" class="empty-state" hidden><strong>没有匹配的航班</strong><span>请清除机位筛选或等待下一次刷新。</span></div>
+        <div class="table-wrap">
+          <table id="flightTable">
+            <thead><tr><th>航班号</th><th>机位</th><th>航线</th><th>预计飞行</th><th>计划到达</th><th>预计到达</th><th>动态偏差</th><th>状态</th><th>更新时间</th></tr></thead>
+            <tbody id="flightRows"></tbody>
+          </table>
+        </div>
+      </section>
     </section>
+
+    <section class="safety-note" aria-label="安全提示"><strong>操作安全提示</strong><span>航班联动或手动控制前，必须确认现场无人检修，并遵守机场设备操作规程。</span></section>
   </main>
 
   <dialog id="confirmDialog">
     <form method="dialog">
-      <p class="section-kicker">CONFIRM ACTION</p>
-      <h2 id="confirmTitle">确认操作</h2>
-      <p id="confirmMessage"></p>
-      <div class="dialog-actions">
-        <button class="button button-secondary" value="cancel">取消</button>
-        <button id="confirmButton" class="button button-danger" value="confirm">确认执行</button>
-      </div>
+      <p class="section-kicker">CONFIRM ACTION</p><h2 id="confirmTitle">确认操作</h2><p id="confirmMessage"></p>
+      <div class="dialog-actions"><button class="button button-secondary" value="cancel">取消</button><button class="button button-danger" value="confirm">确认执行</button></div>
     </form>
   </dialog>
-
   <script src="app.js" defer></script>
 </body>
 </html>
