@@ -20,6 +20,16 @@ namespace T2.ACRemote.Server
         [DataMember(Order = 11)] public string Status { get; set; }
         [DataMember(Order = 12)] public string DataSource { get; set; }
         [DataMember(Order = 13)] public DateTime UpdatedUtc { get; set; }
+        [DataMember(Order = 14)] public string Flid { get; set; }
+        [DataMember(Order = 15)] public string Afid { get; set; }
+        [DataMember(Order = 16)] public string Direction { get; set; }
+        [DataMember(Order = 17)] public string Route { get; set; }
+        [DataMember(Order = 18)] public DateTime? ActualArrivalUtc { get; set; }
+        [DataMember(Order = 19)] public string Airline { get; set; }
+        [DataMember(Order = 20)] public string AircraftNumber { get; set; }
+        [DataMember(Order = 21)] public string AircraftModel { get; set; }
+        [DataMember(Order = 22)] public string Terminal { get; set; }
+        [DataMember(Order = 23)] public string TrafficType { get; set; }
     }
 
     [DataContract]
