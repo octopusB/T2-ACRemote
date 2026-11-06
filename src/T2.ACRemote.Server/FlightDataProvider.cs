@@ -4,8 +4,8 @@ using System.Linq;
 
 namespace T2.ACRemote.Server
 {
-    // Database integration point: replace MockFlightDataProvider with an implementation
-    // that reads the airport flight database and maps rows to FlightRecord.
+    // Database integration point: replace MockFlightDataProvider with MongoFlightDataProvider.
+    // MongoFlightDocument deliberately mirrors CollectingSystem.coll_flight field names.
     public interface IFlightDataProvider
     {
         string Name { get; }
@@ -16,105 +16,121 @@ namespace T2.ACRemote.Server
     {
         private readonly object _sync = new object();
         private readonly Random _random = new Random(275);
-        private readonly List<FlightRecord> _flights = new List<FlightRecord>();
+        private readonly List<MongoFlightDocument> _documents = new List<MongoFlightDocument>();
         private DateTime _lastMutationUtc;
         private int _sequence = 100;
 
-        public string Name { get { return "MOCK-FLIGHTS (replace with database provider)"; } }
+        public string Name { get { return "MOCK-MONGODB: CollectingSystem.coll_flight"; } }
 
-        public MockFlightDataProvider(DateTime utcNow)
-        {
-            Seed(utcNow);
-        }
+        public MockFlightDataProvider(DateTime utcNow) { Seed(utcNow); }
 
         public IList<FlightRecord> GetFlights(DateTime utcNow)
         {
             lock (_sync)
             {
                 if ((utcNow - _lastMutationUtc).TotalSeconds >= 10) Mutate(utcNow);
-                return _flights.OrderBy(x => x.EstimatedArrivalUtc).Select(Clone).ToList();
+                return _documents
+                    .Where(x => x.sign_io == "A" && x.delete == null && !string.IsNullOrWhiteSpace(x.stand))
+                    .Select(MapArrival).OrderBy(x => x.EstimatedArrivalUtc).ToList();
             }
         }
 
         private void Seed(DateTime now)
         {
             var stands = new[] { "275", "276", "277", "278", "301", "302" };
-            var origins = new[] { "CAN", "PEK", "SHA", "CTU", "CKG", "WUH", "XIY", "HGH" };
+            var cities = new[] { "北京首都", "上海虹桥", "成都天府", "重庆", "武汉", "西安", "杭州", "昆明" };
             for (var i = 0; i < 18; i++)
             {
                 var arrival = now.AddMinutes(3 + i * 4 + _random.Next(0, 3));
-                var flightMinutes = _random.Next(80, 210);
-                _flights.Add(NewFlight(stands[i % stands.Length], origins[i % origins.Length], arrival, flightMinutes, now));
+                var duration = _random.Next(80, 210);
+                _documents.Add(NewDocument("A", stands[i % stands.Length], cities[i % cities.Length], arrival, duration, now));
+                if (i % 2 == 0)
+                    _documents.Add(NewDocument("D", stands[(i + 2) % stands.Length], cities[(i + 3) % cities.Length], arrival.AddMinutes(18), duration, now));
             }
             _lastMutationUtc = now;
         }
 
-        private FlightRecord NewFlight(string stand, string origin, DateTime arrival, int flightMinutes, DateTime now)
+        private MongoFlightDocument NewDocument(string direction, string stand, string city, DateTime operationTime, int duration, DateTime now)
         {
-            var scheduledArrival = arrival.AddMinutes(_random.Next(-2, 3));
-            var scheduledDeparture = scheduledArrival.AddMinutes(-flightMinutes);
-            var number = "T2" + _sequence++;
-            return new FlightRecord
+            var scheduled = operationTime.AddMinutes(_random.Next(-2, 3));
+            var airlines = new[] { "CZ", "MU", "CA", "HU", "3U", "ZH" };
+            var airline = airlines[_sequence % airlines.Length];
+            var number = airline + _sequence++;
+            var localDate = operationTime.ToLocalTime().Date;
+            return new MongoFlightDocument
             {
-                FlightId = Guid.NewGuid().ToString("N"),
-                FlightNumber = number,
-                Origin = origin,
-                Destination = "T2",
-                StandId = stand,
-                ScheduledDepartureUtc = scheduledDeparture,
-                EstimatedDepartureUtc = scheduledDeparture.AddMinutes(_random.Next(-3, 4)),
-                ScheduledArrivalUtc = scheduledArrival,
-                EstimatedArrivalUtc = arrival,
-                EstimatedFlightMinutes = flightMinutes,
-                Status = "预计到达",
-                DataSource = Name,
-                UpdatedUtc = now
+                _id = number + "-" + operationTime.ToString("yyyyMMddHHmmss") + "-" + direction,
+                FLID = (50190000 + _sequence).ToString(), AFID = (50191000 + _sequence).ToString(),
+                fdt = localDate.ToUniversalTime(), fimd = localDate.AddDays(-1).ToUniversalTime(),
+                flt = number, airline = airline, sign_io = direction, stand = stand,
+                area = stand.StartsWith("2", StringComparison.Ordinal) ? "西边" : "东边",
+                pnum = "B" + _random.Next(1000, 9999), pmodel = new[] { "32A", "32B", "73N" }[_random.Next(3)],
+                rway = new[] { "01L", "01R", "19L", "19R" }[_random.Next(4)],
+                tatt = "国内", fltk = "正班", fltR = direction == "A" ? city + "-广州" : "广州-" + city,
+                fltRType = "国内", ista = direction == "A" ? "预计到达" : "计划起飞", mist = null,
+                terminal = "T2", st = scheduled, et = direction == "A" ? operationTime : (DateTime?)null,
+                at = null, t = operationTime, aomip_u_t = now, u_t = now, delete = null,
+                isSendDockingOrRemovingTime = false, EstimatedFlightMinutes = duration
             };
         }
 
         private void Mutate(DateTime now)
         {
-            foreach (var flight in _flights)
+            foreach (var flight in _documents.Where(x => x.sign_io == "A"))
             {
-                if (flight.EstimatedArrivalUtc > now.AddMinutes(-20) && flight.EstimatedArrivalUtc < now.AddHours(2))
+                var estimated = flight.et ?? flight.st;
+                if (estimated > now.AddMinutes(-20) && estimated < now.AddHours(2))
                 {
-                    flight.EstimatedArrivalUtc = flight.EstimatedArrivalUtc.AddSeconds(_random.Next(-35, 36));
-                    flight.EstimatedDepartureUtc = flight.EstimatedArrivalUtc.AddMinutes(-flight.EstimatedFlightMinutes);
-                    flight.Status = flight.EstimatedArrivalUtc <= now ? "已到达" : "预计到达";
-                    flight.UpdatedUtc = now;
+                    flight.et = estimated.AddSeconds(_random.Next(-35, 36));
+                    flight.t = flight.et.Value;
+                    flight.ista = flight.et <= now ? "已到达" : "预计到达";
+                    if (flight.et <= now && !flight.at.HasValue) flight.at = flight.et;
+                    flight.u_t = now; flight.aomip_u_t = now;
                 }
             }
 
-            var expired = _flights.Where(x => x.EstimatedArrivalUtc < now.AddMinutes(-25)).ToList();
+            var expired = _documents.Where(x => x.sign_io == "A" && (x.et ?? x.st) < now.AddMinutes(-25)).ToList();
             foreach (var flight in expired)
             {
-                _flights.Remove(flight);
-                var latest = _flights.Count == 0 ? now : _flights.Max(x => x.EstimatedArrivalUtc);
+                _documents.Remove(flight);
+                var arrivals = _documents.Where(x => x.sign_io == "A").ToList();
+                var latest = arrivals.Count == 0 ? now : arrivals.Max(x => x.et ?? x.st);
                 var stands = new[] { "275", "276", "277", "278", "301", "302" };
-                var origins = new[] { "CAN", "PEK", "SHA", "CTU", "CKG", "WUH", "XIY", "HGH" };
-                _flights.Add(NewFlight(stands[_random.Next(stands.Length)], origins[_random.Next(origins.Length)], latest.AddMinutes(_random.Next(3, 7)), _random.Next(80, 210), now));
+                var cities = new[] { "北京首都", "上海虹桥", "成都天府", "重庆", "武汉", "西安", "杭州", "昆明" };
+                _documents.Add(NewDocument("A", stands[_random.Next(stands.Length)], cities[_random.Next(cities.Length)], latest.AddMinutes(_random.Next(3, 7)), _random.Next(80, 210), now));
             }
             _lastMutationUtc = now;
         }
 
-        private static FlightRecord Clone(FlightRecord x)
+        private FlightRecord MapArrival(MongoFlightDocument x)
         {
+            var route = (x.fltR ?? string.Empty).Split(new[] { '-' }, StringSplitOptions.RemoveEmptyEntries);
+            var estimated = x.et ?? x.st;
             return new FlightRecord
             {
-                FlightId = x.FlightId,
-                FlightNumber = x.FlightNumber,
-                Origin = x.Origin,
-                Destination = x.Destination,
-                StandId = x.StandId,
-                ScheduledDepartureUtc = x.ScheduledDepartureUtc,
-                EstimatedDepartureUtc = x.EstimatedDepartureUtc,
-                ScheduledArrivalUtc = x.ScheduledArrivalUtc,
-                EstimatedArrivalUtc = x.EstimatedArrivalUtc,
-                EstimatedFlightMinutes = x.EstimatedFlightMinutes,
-                Status = x.Status,
-                DataSource = x.DataSource,
-                UpdatedUtc = x.UpdatedUtc
+                FlightId = x._id, Flid = x.FLID, Afid = x.AFID, FlightNumber = x.flt,
+                Origin = route.Length > 0 ? route[0] : string.Empty,
+                Destination = route.Length > 1 ? route[route.Length - 1] : "广州",
+                StandId = x.stand, ScheduledDepartureUtc = x.st.AddMinutes(-x.EstimatedFlightMinutes),
+                EstimatedDepartureUtc = estimated.AddMinutes(-x.EstimatedFlightMinutes),
+                ScheduledArrivalUtc = x.st, EstimatedArrivalUtc = estimated,
+                EstimatedFlightMinutes = x.EstimatedFlightMinutes, Status = x.ista, DataSource = Name,
+                UpdatedUtc = x.u_t, Direction = x.sign_io, Route = x.fltR, ActualArrivalUtc = x.at,
+                Airline = x.airline, AircraftNumber = x.pnum, AircraftModel = x.pmodel,
+                Terminal = x.terminal, TrafficType = x.tatt
             };
         }
+    }
+
+    // Field names intentionally match the production MongoDB collection document.
+    internal sealed class MongoFlightDocument
+    {
+        public string _id, FLID, AFID, flt, airline, sign_io, stand, area, pnum, pmodel, rway;
+        public string tatt, fltk, fltR, fltRType, ista, mist, terminal, delete;
+        public DateTime fdt, fimd, aomip_u_t, st, u_t, t;
+        public DateTime? et, at;
+        public bool isSendDockingOrRemovingTime;
+        // Simulation-only helper: the supplied collection has no reliable duration field.
+        public int EstimatedFlightMinutes;
     }
 }
