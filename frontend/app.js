@@ -60,9 +60,9 @@ function renderBridges() {
     cells[6].append(
       button('远程开启', 'button-start', () => confirmApiAction('远程开启', `确认对登机桥 ${id} 执行远程开启吗？`, `/api/bridges/${encodeURIComponent(id)}/air-conditioner/start`)),
       button('远程关闭', 'button-stop', () => confirmApiAction('远程关闭', `确认对登机桥 ${id} 执行远程关闭吗？`, `/api/bridges/${encodeURIComponent(id)}/air-conditioner/stop`)),
-      button('释放联动', 'button-release', () => confirmApiAction('释放联动', `确认释放登机桥 ${id} 的远程控制吗？`, `/api/bridges/${encodeURIComponent(id)}/air-conditioner/release`)),
-      button(auto.Enabled ? '关闭航班联动' : '开启航班联动', auto.Enabled ? 'button-secondary' : 'button-flight', () => confirmApiAction(auto.Enabled ? '关闭航班联动' : '开启航班联动', `确认${auto.Enabled ? '关闭' : '开启'}登机桥 ${id} 的航班联动自动启停吗？`, `/api/bridges/${encodeURIComponent(id)}/flight-linkage/${auto.Enabled ? 'disable' : 'enable'}`)),
-      button('查看该机位航班', 'button-link', () => showFlights(auto.StandId))
+      button('释放', 'button-release', () => confirmApiAction('释放联动', `确认释放登机桥 ${id} 的远程控制吗？`, `/api/bridges/${encodeURIComponent(id)}/air-conditioner/release`)),
+      button(auto.Enabled ? '关闭联动' : '开启联动', auto.Enabled ? 'button-secondary' : 'button-flight', () => confirmApiAction(auto.Enabled ? '关闭航班联动' : '开启航班联动', `确认${auto.Enabled ? '关闭' : '开启'}登机桥 ${id} 的航班联动自动启停吗？`, `/api/bridges/${encodeURIComponent(id)}/flight-linkage/${auto.Enabled ? 'disable' : 'enable'}`)),
+      button('查看航班', 'button-link', () => showFlights(auto.StandId))
     );
     row.append(...cells); elements.bridgeRows.append(row);
   }
