@@ -76,15 +76,16 @@ input:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(13, 107, 77
 .last-updated { color: var(--muted); font-size: 13px; }
 .table-wrap { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; }
+#bridgeTable { min-width: 1500px; }
 th, td { padding: 14px 12px; border-bottom: 1px solid #e8ecea; text-align: left; white-space: nowrap; }
 th { color: var(--muted); font-size: 12px; letter-spacing: .04em; text-transform: uppercase; }
 .badge { display: inline-flex; align-items: center; gap: 6px; padding: 5px 9px; border-radius: 999px; font-size: 12px; font-weight: 700; }
 .badge-on { color: #07553c; background: #d8f4e8; }.badge-off { color: #5e6965; background: #edf0ee; }.badge-cut { color: #8f251d; background: #fde5e2; }
 .actions { display: flex; gap: 7px; }.actions .button { min-height: 34px; padding: 7px 10px; font-size: 12px; }
-.actions-wrap { flex-wrap: wrap; min-width: 290px; }
+.actions-wrap { flex-wrap: nowrap; min-width: max-content; }
 .button-start { color: white; background: var(--green); }.button-stop { color: white; background: var(--red); }.button-release { color: #3e4a45; background: #e7ece9; }
 .bridge-id { display: grid; gap: 2px; }.bridge-id strong { font-size: 16px; }.bridge-id small { margin: 0; }
-.automation-status { min-width: 150px; max-width: 220px; white-space: normal; font-size: 13px; line-height: 1.45; }.inline-error { display: block; margin-top: 4px; color: var(--red); }
+.automation-status { min-width: 150px; white-space: nowrap; font-size: 13px; line-height: 1.45; }.inline-error { display: inline; margin-left: 6px; color: var(--red); }
 .flight-filter { display: flex; align-items: center; gap: 8px; }.flight-filter label { color: var(--muted); font-size: 13px; font-weight: 700; white-space: nowrap; }.flight-filter select { min-width: 130px; }
 .empty-state { display: grid; place-items: center; gap: 6px; min-height: 180px; color: var(--muted); text-align: center; }.empty-state strong { color: var(--ink); font-size: 18px; }
 .safety-note { display: flex; gap: 12px; padding: 16px 20px; border: 1px solid #f0c681; border-radius: 12px; color: #70410a; background: #fff6e7; }
