@@ -28,7 +28,7 @@ namespace T2.ACRemote.Server
                 { "MongoHost", "10.1.11.102" },
                 { "MongoPort", "27017" },
                 { "MongoDatabase", "monitor_t2" },
-                { "MongoAuthDatabase", "admin" },
+                { "MongoAuthDatabase", "monitor_t2" },
                 { "MongoUser", "monitorT2User" },
                 { "MongoPassword", "" },
                 { "FlightCollection", "coll_flight" },

@@ -89,7 +89,7 @@ python -m http.server 8080 --directory frontend
    .\T2.ACRemote.Server.exe
    ```
 
-   默认业务库为 `monitor_t2`，认证库为 `admin`；如果账号创建在业务库中，追加 `--MongoAuthDatabase=monitor_t2`。
+   默认业务库和认证库均为 `monitor_t2`，等价于连接串 `mongodb://账号:密码@10.1.11.102:27017/monitor_t2`。如果账号实际创建在 `admin` 库，可追加 `--MongoAuthDatabase=admin` 覆盖。
 
    当前 MongoDB Server 为 `3.4.x`（wire version 5），因此 Server 固定使用最后仍支持该服务端版本的 C# Driver `2.13.3`。该旧驱动存在 NuGet 安全公告，应用必须限制在机场专网并使用只读、最小权限数据库账号；建议后续升级 MongoDB Server，再同步升级驱动。
 3. 再在各工控机启动 `T2.ACRemote.Bridge.exe`。服务器根据连接来源 IP 匹配数据库配置，不再依赖工控机本地 BridgeId。
