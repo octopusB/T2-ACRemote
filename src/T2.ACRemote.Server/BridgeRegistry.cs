@@ -3,7 +3,6 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Sockets;
-using System.Threading;
 using System.Threading.Tasks;
 using T2.ACRemote.Common;
 
@@ -11,12 +10,39 @@ namespace T2.ACRemote.Server
 {
     public sealed class BridgeRegistry
     {
+        private readonly IBridgeConfigurationProvider _configurations;
         private readonly ConcurrentDictionary<string, BridgeSession> _sessions = new ConcurrentDictionary<string, BridgeSession>(StringComparer.OrdinalIgnoreCase);
+
+        public BridgeRegistry(IBridgeConfigurationProvider configurations) { _configurations = configurations; }
         public void Add(BridgeSession session) { BridgeSession old; if (_sessions.TryGetValue(session.BridgeId, out old)) old.Close(); _sessions[session.BridgeId] = session; }
         public void Remove(BridgeSession session) { BridgeSession current; if (_sessions.TryGetValue(session.BridgeId, out current) && ReferenceEquals(current, session)) _sessions.TryRemove(session.BridgeId, out current); }
         public BridgeSession Get(string id) { BridgeSession result; return _sessions.TryGetValue(id, out result) ? result : null; }
-        public IList<string> BridgeIds() { return _sessions.Keys.OrderBy(x => x).ToList(); }
-        public IList<BridgeStatus> Statuses() { return _sessions.Values.Select(x => x.LastStatus ?? new BridgeStatus { BridgeId = x.BridgeId, IoConnected = false, UpdatedUtc = DateTime.UtcNow, Error = "等待首个状态上报" }).OrderBy(x => x.BridgeId).ToList(); }
+        public BridgeConfiguration FindConfigurationByIp(string ipAddress) { return _configurations.FindByIp(ipAddress); }
+        public string GetStandId(string bridgeId) { return _configurations.GetConfigurations().Where(x => string.Equals(x.BridgeId, bridgeId, StringComparison.OrdinalIgnoreCase)).Select(x => x.StandId).FirstOrDefault(); }
+        public IList<string> BridgeIds() { return _configurations.GetConfigurations().Select(x => x.BridgeId).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x => x).ToList(); }
+
+        public IList<BridgeStatus> Statuses()
+        {
+            var result = new List<BridgeStatus>();
+            foreach (var configuration in _configurations.GetConfigurations())
+            {
+                BridgeSession session;
+                _sessions.TryGetValue(configuration.BridgeId, out session);
+                var source = session == null ? null : session.LastStatus;
+                result.Add(new BridgeStatus
+                {
+                    BridgeId = configuration.BridgeId, StandId = configuration.StandId, ConfiguredIp = configuration.IpAddress,
+                    TransportMethod = configuration.TransportMethod, Online = session != null,
+                    IoConnected = source != null && source.IoConnected, BridgeRunning = source != null && source.BridgeRunning,
+                    Do1RemoteStart = source != null && source.Do1RemoteStart, Do2CutOriginal = source != null && source.Do2CutOriginal,
+                    Mode = source == null ? ControlMode.Release : source.Mode,
+                    UpdatedUtc = source == null ? DateTime.UtcNow : source.UpdatedUtc,
+                    LeaseExpiresUtc = source == null ? null : source.LeaseExpiresUtc,
+                    Error = session == null ? "工控机离线" : source == null ? "等待首个状态上报" : source.Error
+                });
+            }
+            return result.OrderBy(x => x.BridgeId).ToList();
+        }
     }
 
     public sealed class BridgeSession
@@ -25,9 +51,14 @@ namespace T2.ACRemote.Server
         private readonly SecureFrameChannel _channel;
         private readonly ConcurrentDictionary<string, TaskCompletionSource<CommandResult>> _pending = new ConcurrentDictionary<string, TaskCompletionSource<CommandResult>>();
         public string BridgeId { get; private set; }
+        public string RemoteIpAddress { get; private set; }
         public BridgeStatus LastStatus { get; private set; }
 
-        public BridgeSession(TcpClient client, SecureFrameChannel channel, string bridgeId) { _client = client; _channel = channel; BridgeId = bridgeId; }
+        public BridgeSession(TcpClient client, SecureFrameChannel channel, string bridgeId, string remoteIpAddress)
+        {
+            _client = client; _channel = channel; BridgeId = bridgeId; RemoteIpAddress = remoteIpAddress;
+        }
+
         public void Run(BridgeRegistry registry)
         {
             try

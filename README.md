@@ -5,21 +5,21 @@
 ## 架构
 
 ```text
-独立前端/REST 客户端 -> Server API <- 长连接/HMAC -> 工控机中转程序 -> Modbus TCP -> USR-IO424T
+MongoDB 航班/桥配置 -> Server API <- 长连接/HMAC -> 工控机中转程序 -> Modbus TCP 或 COM4/RS-485 -> USR-IO424T
 ```
 
 - 服务器监听工控机主动连接，维护登机桥在线状态并只提供 JSON REST API；前端单独部署。
 - 工控机轮询 DI1，通过 DO1 控制新增并联启动回路，通过 DO2 控制串联于原启动回路的常闭继电器。
-- 航班联动服务根据预计到达时间提前开启空调，并在到达后的可配置空闲时间内没有新航班时自动关闭；275A、275B 等多桥统一映射到机位 275。
+- Server 从 MongoDB `ac_remote_bridge_config` 读取全部桥，通过工控机来源 IP 匹配桥号、机位和传输方式；数据库中的离线桥也会显示在页面。
+- 航班联动服务从 MongoDB `coll_flight` 读取进港航班，根据 `stand`、`st`、`et` 自动启停；桥与机位关系以桥配置集合为准。
 - 通信帧使用 HMAC-SHA256 验证，HTTP API 使用 `X-Api-Key`。生产环境仍应部署在机场专网/VPN 内，并在反向代理终止 HTTPS。
 
 ## 航班联动
 
 - 默认提前 `15` 分钟开启，到达后 `20` 分钟没有新航班时关闭，页面可在 `0-240` 分钟范围内调整。
 - 支持每个 Bridge 单独开启/关闭，也支持一键开启或关闭全部当前在线 Bridge。
-- 模拟数据按 `CollectingSystem.coll_flight` 的 MongoDB 文档字段生成（包括 `_id`、`FLID`、`AFID`、`flt`、`sign_io`、`stand`、`st`、`et`、`at`、`u_t` 等），同时生成到达和出发航班；空调联动只使用 `sign_io=A`、未删除且有机位的到达航班。
-- 模拟数据提供 275、276、277、278、301、302 等机位的未来航班，每 10 秒轻微调整 `et` 预计到达时间，到达后填写 `at`，并自动补充后续航班。
-- `IFlightDataProvider` 是后续数据库接入点。生产实现读取数据库后，只需将记录映射为 `FlightRecord` 并在 Server 启动时替换 `MockFlightDataProvider`。
+- 真实数据来自 `CollectingSystem.coll_flight`；空调联动只使用 `sign_io=A`、未删除且有机位的进港航班。
+- `flt` 为航班号，`stand` 为机位，`st` 为计划到达时间，`et` 为预计到达时间；`et` 为空时回退到 `st`。
 - 航班联动关闭时会发送 `Release`，释放 DO1/DO2 并恢复原登机桥联动控制。
 
 ## 说明书映射
@@ -30,7 +30,7 @@
 | DO2 | `0x0001` | `0x01` / `0x05` | 励磁后使外部常闭触点断开原启动回路 |
 | DI1 | `0x0020` | `0x02` | 登机桥运行状态 |
 
-设备默认 Modbus 地址在说明书示例中为十进制 17 (`0x11`)。Modbus TCP 端口由设备的 TCPS 监听端口配置决定；本项目默认配置采用 `28899`，现场必须核对。
+设备默认 Modbus 地址在说明书示例中为十进制 17 (`0x11`)。`transMethod=TCP` 时使用 Modbus TCP，默认端口 `28899`；`transMethod=serial port` 时使用工控机 `COM4`、Modbus RTU，默认 `9600 8N1`。现场必须核对波特率和设备参数。
 
 ## 控制状态机
 
@@ -81,23 +81,31 @@ python -m http.server 8080 --directory frontend
 
 ## 配置与运行
 
-1. 在 IO 控制器中配置固定 IP、Modbus 从机模式和 TCPS 监听端口。
-2. 先启动 `T2.ACRemote.Server.exe`，再在各工控机启动 `T2.ACRemote.Bridge.exe`。直接双击时使用内置默认参数。
-3. 需要修改参数时，在 Windows 快捷方式“目标”末尾追加 `--名称=值`，或者设置同名的 `T2AC_名称` 环境变量。例如：
+1. 在 `CollectingSystem.ac_remote_bridge_config` 中配置 `bridge`、`stand`、`transMethod` 和工控机 `IP`；`transMethod` 仅支持 `TCP` 或 `serial port`。
+2. Server 默认连接 `10.1.11.102:27017`，数据库和集合名已内置。密码不写入仓库，启动前设置：
+
+   ```powershell
+   $env:T2AC_MONGOPASSWORD = '<MongoDB密码>'
+   .\T2.ACRemote.Server.exe
+   ```
+
+   默认认证库为 `admin`；如果账号创建在业务库中，追加 `--MongoAuthDatabase=CollectingSystem`。
+3. 再在各工控机启动 `T2.ACRemote.Bridge.exe`。服务器根据连接来源 IP 匹配数据库配置，不再依赖工控机本地 BridgeId。
+4. 需要修改参数时，在 Windows 快捷方式“目标”末尾追加 `--名称=值`，或者设置同名的 `T2AC_名称` 环境变量。例如：
 
    ```text
    T2.ACRemote.Server.exe --SharedSecret=至少16位共享密钥 --ApiKey=管理密钥 --AllowedOrigins=http://10.1.3.5:8080
-   T2.ACRemote.Bridge.exe --BridgeId=275 --ServerHost=10.1.3.5 --SharedSecret=至少16位共享密钥 --IoHost=192.168.10.1
+   T2.ACRemote.Bridge.exe --ServerHost=10.1.3.5 --SharedSecret=至少16位共享密钥 --IoHost=192.168.10.1 --SerialBaudRate=9600
    ```
 
    可用参数可通过 `程序.exe --help` 查看。命令行优先于环境变量，环境变量优先于内置默认值。
-4. Server API 默认地址为 `http://服务器地址:19002/`，根路径返回 JSON 服务信息，不再提供内嵌网页；Windows 可能需要管理员执行：
+5. Server API 默认地址为 `http://服务器地址:19002/`，根路径返回 JSON 服务信息，不再提供内嵌网页；Windows 可能需要管理员执行：
 
    ```powershell
    netsh http add urlacl url=http://+:19002/ user=DOMAIN\service-account
    ```
 
-5. 防火墙仅允许工控机访问 TCP 19001，仅允许管理网访问 TCP 19002。
+6. 防火墙仅允许工控机访问 TCP 19001，仅允许管理网访问 TCP 19002；Server 还需访问 MongoDB TCP 27017。
 
 > 兼容性警告：微软不支持 .NET 10 在 Windows 7/Windows Embedded Standard 7 上运行。此 `win-x86` 单文件版本是按用户现有 .NET 10 项目的发布方式生成，必须在目标工控机上完成启动、网络、加密、Modbus、长时间运行和异常恢复测试；不能仅以“能够双击启动”作为投产依据。
 

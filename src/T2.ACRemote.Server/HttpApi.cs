@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Text;
 using System.Threading;
@@ -118,7 +119,7 @@ namespace T2.ACRemote.Server
                 if (parts.Length == 5 && parts[0] == "api" && parts[1] == "bridges" && parts[3] == "flight-linkage" && context.Request.HttpMethod == "POST")
                 {
                     var bridgeId = Uri.UnescapeDataString(parts[2]);
-                    if (_registry.Get(bridgeId) == null) { WriteJson(context, 404, new ApiResponse { Success = false, Message = "工控机不在线。" }); return; }
+                    if (!_registry.BridgeIds().Contains(bridgeId, StringComparer.OrdinalIgnoreCase)) { WriteJson(context, 404, new ApiResponse { Success = false, Message = "数据库中没有该桥配置。" }); return; }
                     if (parts[4] == "enable") _flightLinkage.SetBridgeEnabled(bridgeId, true);
                     else if (parts[4] == "disable") _flightLinkage.SetBridgeEnabled(bridgeId, false);
                     else { WriteJson(context, 404, new ApiResponse { Success = false, Message = "未知航班联动操作。" }); return; }

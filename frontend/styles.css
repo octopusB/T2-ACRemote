@@ -78,12 +78,13 @@ input:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(13, 107, 77
 table { width: 100%; border-collapse: collapse; }
 #bridgeTable { table-layout: fixed; }
 #bridgeTable .bridge-col-id { width: 7%; }
-#bridgeTable .bridge-col-running { width: 9%; }
-#bridgeTable .bridge-col-start { width: 10%; }
-#bridgeTable .bridge-col-stop { width: 14%; }
+#bridgeTable .bridge-col-connection { width: 14%; }
+#bridgeTable .bridge-col-running { width: 7%; }
+#bridgeTable .bridge-col-start { width: 9%; }
+#bridgeTable .bridge-col-stop { width: 13%; }
 #bridgeTable .bridge-col-linkage { width: 7%; }
-#bridgeTable .bridge-col-schedule { width: 13%; }
-#bridgeTable .bridge-col-actions { width: 40%; }
+#bridgeTable .bridge-col-schedule { width: 12%; }
+#bridgeTable .bridge-col-actions { width: 31%; }
 th, td { padding: 14px 12px; border-bottom: 1px solid #e8ecea; text-align: left; white-space: nowrap; }
 #bridgeTable th, #bridgeTable td { padding-right: clamp(4px, .55vw, 10px); padding-left: clamp(4px, .55vw, 10px); }
 #bridgeTable th { overflow: hidden; font-size: clamp(9px, .75vw, 12px); text-overflow: ellipsis; }
@@ -94,6 +95,8 @@ th { color: var(--muted); font-size: 12px; letter-spacing: .04em; text-transform
 .actions-wrap { flex-wrap: nowrap; width: 100%; }
 .button-start { color: white; background: var(--green); }.button-stop { color: white; background: var(--red); }.button-release { color: #3e4a45; background: #e7ece9; }
 .bridge-id { display: flex; align-items: center; gap: 8px; white-space: nowrap; }.bridge-id strong { font-size: 16px; }.bridge-id small { margin: 0; }
+.bridge-connection { display: flex; align-items: center; gap: 6px; min-width: 0; }.bridge-connection small { overflow: hidden; color: var(--muted); text-overflow: ellipsis; }
+.bridge-offline { opacity: .74; }
 .automation-status { min-width: 0; overflow: hidden; white-space: nowrap; font-size: clamp(10px, .8vw, 13px); line-height: 1.45; text-overflow: ellipsis; }.inline-error { display: inline; margin-left: 6px; color: var(--red); }
 .flight-filter { display: flex; align-items: center; gap: 8px; }.flight-filter label { color: var(--muted); font-size: 13px; font-weight: 700; white-space: nowrap; }.flight-filter select { min-width: 130px; }
 .empty-state { display: grid; place-items: center; gap: 6px; min-height: 180px; color: var(--muted); text-align: center; }.empty-state strong { color: var(--ink); font-size: 18px; }

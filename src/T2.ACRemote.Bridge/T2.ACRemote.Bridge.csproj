@@ -9,4 +9,7 @@
   <ItemGroup>
     <ProjectReference Include="..\T2.ACRemote.Common\T2.ACRemote.Common.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="System.IO.Ports" Version="11.0.0" />
+  </ItemGroup>
 </Project>

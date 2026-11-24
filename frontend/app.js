@@ -43,24 +43,30 @@ function renderBridges() {
   for (const bridge of bridges) {
     const id = String(bridge.BridgeId ?? '—');
     const auto = linkageStateFor(id) || { StandId: id.replace(/[A-Za-z]+$/, ''), Enabled: false, ShouldRun: false, AutomationStatus: '未启用' };
-    const row = document.createElement('tr');
-    const cells = Array.from({ length: 7 }, () => document.createElement('td'));
+    const online = bridge.Online !== false;
+    const row = document.createElement('tr'); row.classList.toggle('bridge-offline', !online);
+    const cells = Array.from({ length: 8 }, () => document.createElement('td'));
     const idBlock = document.createElement('div'); idBlock.className = 'bridge-id';
     const idStrong = document.createElement('strong'); idStrong.textContent = id;
-    const standSmall = document.createElement('small'); standSmall.textContent = `机位 ${auto.StandId}`;
+    const standSmall = document.createElement('small'); standSmall.textContent = `机位 ${bridge.StandId || auto.StandId}`;
     idBlock.append(idStrong, standSmall); cells[0].append(idBlock);
-    cells[1].append(badge(bridge.BridgeRunning ? '运行' : '停止', bridge.BridgeRunning ? 'badge-on' : 'badge-off'));
-    cells[2].append(badge(bridge.Do1RemoteStart ? '闭合' : '断开', bridge.Do1RemoteStart ? 'badge-on' : 'badge-off'));
-    cells[3].append(badge(bridge.Do2CutOriginal ? '已切断' : '未切断', bridge.Do2CutOriginal ? 'badge-cut' : 'badge-off'));
-    cells[4].append(badge(auto.Enabled ? '已开启' : '已关闭', auto.Enabled ? 'badge-on' : 'badge-off'));
+    const connection = document.createElement('div'); connection.className = 'bridge-connection';
+    connection.append(badge(!online ? '离线' : bridge.IoConnected ? '在线 · IO正常' : '在线 · IO异常', !online ? 'badge-off' : bridge.IoConnected ? 'badge-on' : 'badge-cut'));
+    const connectionMeta = document.createElement('small'); connectionMeta.textContent = `${bridge.TransportMethod || '—'} · ${bridge.ConfiguredIp || '—'}`; connection.append(connectionMeta); cells[1].append(connection);
+    cells[2].append(badge(!online ? '—' : bridge.BridgeRunning ? '运行' : '停止', bridge.BridgeRunning && online ? 'badge-on' : 'badge-off'));
+    cells[3].append(badge(!online ? '—' : bridge.Do1RemoteStart ? '闭合' : '断开', bridge.Do1RemoteStart && online ? 'badge-on' : 'badge-off'));
+    cells[4].append(badge(!online ? '—' : bridge.Do2CutOriginal ? '已切断' : '未切断', bridge.Do2CutOriginal && online ? 'badge-cut' : 'badge-off'));
+    cells[5].append(badge(auto.Enabled ? '已开启' : '已关闭', auto.Enabled ? 'badge-on' : 'badge-off'));
     const autoText = document.createElement('div'); autoText.className = 'automation-status'; autoText.textContent = auto.AutomationStatus || '等待调度';
     if (auto.LastError) { const error = document.createElement('small'); error.className = 'inline-error'; error.textContent = auto.LastError; autoText.append(error); }
-    cells[5].append(autoText);
-    cells[6].className = 'actions actions-wrap';
-    cells[6].append(
-      button('远程开启', 'button-start', () => confirmApiAction('远程开启', `确认对登机桥 ${id} 执行远程开启吗？`, `/api/bridges/${encodeURIComponent(id)}/air-conditioner/start`)),
-      button('远程关闭', 'button-stop', () => confirmApiAction('远程关闭', `确认对登机桥 ${id} 执行远程关闭吗？`, `/api/bridges/${encodeURIComponent(id)}/air-conditioner/stop`)),
-      button('释放', 'button-release', () => confirmApiAction('释放联动', `确认释放登机桥 ${id} 的远程控制吗？`, `/api/bridges/${encodeURIComponent(id)}/air-conditioner/release`)),
+    cells[6].append(autoText);
+    cells[7].className = 'actions actions-wrap';
+    const startButton = button('远程开启', 'button-start', () => confirmApiAction('远程开启', `确认对登机桥 ${id} 执行远程开启吗？`, `/api/bridges/${encodeURIComponent(id)}/air-conditioner/start`));
+    const stopButton = button('远程关闭', 'button-stop', () => confirmApiAction('远程关闭', `确认对登机桥 ${id} 执行远程关闭吗？`, `/api/bridges/${encodeURIComponent(id)}/air-conditioner/stop`));
+    const releaseButton = button('释放', 'button-release', () => confirmApiAction('释放联动', `确认释放登机桥 ${id} 的远程控制吗？`, `/api/bridges/${encodeURIComponent(id)}/air-conditioner/release`));
+    startButton.disabled = stopButton.disabled = releaseButton.disabled = !online;
+    cells[7].append(
+      startButton, stopButton, releaseButton,
       button(auto.Enabled ? '关闭联动' : '开启联动', auto.Enabled ? 'button-secondary' : 'button-flight', () => confirmApiAction(auto.Enabled ? '关闭航班联动' : '开启航班联动', `确认${auto.Enabled ? '关闭' : '开启'}登机桥 ${id} 的航班联动自动启停吗？`, `/api/bridges/${encodeURIComponent(id)}/flight-linkage/${auto.Enabled ? 'disable' : 'enable'}`)),
       button('查看航班', 'button-link', () => showFlights(auto.StandId))
     );
@@ -69,7 +75,7 @@ function renderBridges() {
   elements.bridgeCount.textContent = bridges.length;
   elements.linkageCount.textContent = (linkage.Bridges || []).filter(x => x.Enabled).length;
   elements.flightWindowCount.textContent = (linkage.Bridges || []).filter(x => x.Enabled && x.ShouldRun).length;
-  elements.remoteStopCount.textContent = bridges.filter(x => x.Do2CutOriginal).length;
+  elements.remoteStopCount.textContent = bridges.filter(x => x.Online !== false && x.Do2CutOriginal).length;
 }
 
 function renderFlightFilter() {
@@ -86,7 +92,7 @@ function renderFlights() {
   elements.flightRows.replaceChildren();
   for (const flight of visible) {
     const row = document.createElement('tr');
-    const values = [flight.FlightNumber, flight.StandId, `${flight.Origin} → ${flight.Destination}`, `${flight.EstimatedFlightMinutes} 分钟`, formatTime(flight.ScheduledArrivalUtc), formatTime(flight.EstimatedArrivalUtc)];
+    const values = [flight.FlightNumber, flight.StandId, `${flight.Origin} → ${flight.Destination}`, flight.EstimatedFlightMinutes > 0 ? `${flight.EstimatedFlightMinutes} 分钟` : '—', formatTime(flight.ScheduledArrivalUtc), formatTime(flight.EstimatedArrivalUtc)];
     for (const value of values) { const cell = document.createElement('td'); cell.textContent = value ?? '—'; row.append(cell); }
     const offset = deviationMinutes(flight); const deviation = document.createElement('td'); deviation.append(badge(offset === 0 ? '准点' : `${offset > 0 ? '+' : ''}${offset} 分钟`, offset > 3 ? 'badge-cut' : 'badge-off')); row.append(deviation);
     const status = document.createElement('td'); status.append(badge(flight.Status || '预计到达', flight.Status === '已到达' ? 'badge-off' : 'badge-on')); row.append(status);

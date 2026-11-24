@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using T2.ACRemote.Common;
+using T2.ACRemote.Server;
 
 namespace T2.ACRemote.Tests
 {
@@ -12,6 +13,7 @@ namespace T2.ACRemote.Tests
             StartWhenStopped(); RejectStartWhenRunning(); StopWhenRunning(); StopWhenStopped(); ReleaseRestoresLinkage(); BridgeStartReleasesRemoteStart(); BridgeStopReleasesRemoteStop();
             CommandLineSettingsOverrideDefaults(); EnvironmentSettingsOverrideDefaults();
             MultiBridgeStandNormalization(); FlightWindowStartsEarly(); FlightWindowClosesAfterIdle();
+            RegisteredConfigurationRoundTrip(); OfflineConfiguredBridgeIsListed();
             Console.WriteLine("PASS: " + _tests + " safety-state tests");
         }
         private static void StartWhenStopped() { var f = new Fake(); var r = Controller(f).Apply(C(ControlMode.RemoteStart)); Yes(r.Success && f.Do1 && !f.Do2, "remote start"); }
@@ -26,10 +28,13 @@ namespace T2.ACRemote.Tests
         private static void MultiBridgeStandNormalization() { Yes(FlightLinkageRules.NormalizeStandId("275A") == "275" && FlightLinkageRules.NormalizeStandId("275B") == "275", "multi-bridge stand normalization"); }
         private static void FlightWindowStartsEarly() { var now = DateTime.UtcNow; Yes(FlightLinkageRules.ShouldRun(now, new[] { now.AddMinutes(10) }, 15, 20), "flight window starts early"); }
         private static void FlightWindowClosesAfterIdle() { var now = DateTime.UtcNow; Yes(!FlightLinkageRules.ShouldRun(now, new[] { now.AddMinutes(-21) }, 15, 20), "flight window closes after idle"); }
+        private static void RegisteredConfigurationRoundTrip() { var x = new RegisteredMessage { BridgeId = "277A", StandId = "277", TransportMethod = "serial port", SerialPortName = "COM4" }; var y = Json.Deserialize<RegisteredMessage>(Json.Serialize(x)); Yes(y.BridgeId == "277A" && y.TransportMethod == "serial port" && y.SerialPortName == "COM4", "registered bridge configuration"); }
+        private static void OfflineConfiguredBridgeIsListed() { var registry = new BridgeRegistry(new Configs()); var status = registry.Statuses()[0]; Yes(status.BridgeId == "277A" && status.StandId == "277" && !status.Online && status.TransportMethod == "serial port", "offline configured bridge listing"); }
         private static AirConditionerController Controller(Fake f) { return new AirConditionerController(f, "B1"); }
         private static CommandMessage C(ControlMode mode) { return new CommandMessage { RequestId = Guid.NewGuid().ToString(), Mode = mode, LeaseSeconds = 60 }; }
         private static void Yes(bool condition, string name) { _tests++; if (!condition) throw new Exception("FAILED: " + name); }
         private sealed class Fake : IIoController { public bool Di1; public bool Do1; public bool Do2; public bool ReadBridgeRunning() { return Di1; } public bool ReadOutput(int i) { return i == 1 ? Do1 : Do2; } public void WriteOutput(int i, bool v) { if (i == 1) Do1 = v; else if (i == 2) Do2 = v; } }
+        private sealed class Configs : IBridgeConfigurationProvider { public IList<BridgeConfiguration> GetConfigurations() { return new List<BridgeConfiguration> { new BridgeConfiguration { BridgeId = "277A", StandId = "277", TransportMethod = "serial port", IpAddress = "10.1.2.82" } }; } public BridgeConfiguration FindByIp(string ipAddress) { return GetConfigurations()[0]; } }
     }
 }
 

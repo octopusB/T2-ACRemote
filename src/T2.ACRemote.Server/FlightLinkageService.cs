@@ -162,7 +162,7 @@ namespace T2.ACRemote.Server
 
             foreach (var bridgeId in _registry.BridgeIds())
             {
-                var standId = NormalizeStandId(bridgeId);
+                var standId = _registry.GetStandId(bridgeId) ?? NormalizeStandId(bridgeId);
                 var relevant = _flights.Where(x => string.Equals(x.StandId, standId, StringComparison.OrdinalIgnoreCase)).OrderBy(x => x.EstimatedArrivalUtc).ToList();
                 var shouldRun = ShouldRun(now, relevant, before, after);
                 var state = _states.GetOrAdd(bridgeId, CreateState);
@@ -210,7 +210,7 @@ namespace T2.ACRemote.Server
             return new BridgeFlightLinkageState
             {
                 BridgeId = bridgeId,
-                StandId = NormalizeStandId(bridgeId),
+                StandId = _registry.GetStandId(bridgeId) ?? NormalizeStandId(bridgeId),
                 Enabled = IsEnabled(bridgeId),
                 AutomationStatus = "等待调度",
                 RelevantFlights = new List<FlightRecord>()
