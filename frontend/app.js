@@ -52,7 +52,7 @@ function renderBridges() {
     idBlock.append(idStrong, standSmall); cells[0].append(idBlock);
     const connection = document.createElement('div'); connection.className = 'bridge-connection';
     connection.append(badge(!online ? '离线' : bridge.IoConnected ? '在线 · IO正常' : '在线 · IO异常', !online ? 'badge-off' : bridge.IoConnected ? 'badge-on' : 'badge-cut'));
-    const connectionMeta = document.createElement('small'); connectionMeta.textContent = `${bridge.TransportMethod || '—'} · ${bridge.ConfiguredIp || '—'}`; connection.append(connectionMeta); cells[1].append(connection);
+    const connectionMeta = document.createElement('small'); connectionMeta.textContent = bridge.TransportMethod || '—'; connection.append(connectionMeta); cells[1].append(connection);
     cells[2].append(badge(!online ? '—' : bridge.BridgeRunning ? '运行' : '停止', bridge.BridgeRunning && online ? 'badge-on' : 'badge-off'));
     cells[3].append(badge(!online ? '—' : bridge.Do1RemoteStart ? '闭合' : '断开', bridge.Do1RemoteStart && online ? 'badge-on' : 'badge-off'));
     cells[4].append(badge(!online ? '—' : bridge.Do2CutOriginal ? '已切断' : '未切断', bridge.Do2CutOriginal && online ? 'badge-cut' : 'badge-off'));
