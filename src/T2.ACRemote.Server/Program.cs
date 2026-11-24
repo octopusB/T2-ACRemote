@@ -27,7 +27,7 @@ namespace T2.ACRemote.Server
                 { "FlightStopAfterMinutes", "20" },
                 { "MongoHost", "10.1.11.102" },
                 { "MongoPort", "27017" },
-                { "MongoDatabase", "CollectingSystem" },
+                { "MongoDatabase", "monitor_t2" },
                 { "MongoAuthDatabase", "admin" },
                 { "MongoUser", "monitorT2User" },
                 { "MongoPassword", "" },

@@ -5,7 +5,7 @@ using System.Linq;
 namespace T2.ACRemote.Server
 {
     // Database integration point: replace MockFlightDataProvider with MongoFlightDataProvider.
-    // MongoFlightDocument deliberately mirrors CollectingSystem.coll_flight field names.
+    // MongoFlightDocument deliberately mirrors monitor_t2.coll_flight field names.
     public interface IFlightDataProvider
     {
         string Name { get; }
@@ -20,7 +20,7 @@ namespace T2.ACRemote.Server
         private DateTime _lastMutationUtc;
         private int _sequence = 100;
 
-        public string Name { get { return "MOCK-MONGODB: CollectingSystem.coll_flight"; } }
+        public string Name { get { return "MOCK-MONGODB: monitor_t2.coll_flight"; } }
 
         public MockFlightDataProvider(DateTime utcNow) { Seed(utcNow); }
 

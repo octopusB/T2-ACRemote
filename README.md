@@ -18,7 +18,7 @@ MongoDB 航班/桥配置 -> Server API <- 长连接/HMAC -> 工控机中转程�
 
 - 默认提前 `15` 分钟开启，到达后 `20` 分钟没有新航班时关闭，页面可在 `0-240` 分钟范围内调整。
 - 支持每个 Bridge 单独开启/关闭，也支持一键开启或关闭全部当前在线 Bridge。
-- 真实数据来自 `CollectingSystem.coll_flight`；空调联动只使用 `sign_io=A`、未删除且有机位的进港航班。
+- 真实数据来自 `monitor_t2.coll_flight`；空调联动只使用 `sign_io=A`、未删除且有机位的进港航班。
 - `flt` 为航班号，`stand` 为机位，`st` 为计划到达时间，`et` 为预计到达时间；`et` 为空时回退到 `st`。
 - 航班联动关闭时会发送 `Release`，释放 DO1/DO2 并恢复原登机桥联动控制。
 
@@ -81,7 +81,7 @@ python -m http.server 8080 --directory frontend
 
 ## 配置与运行
 
-1. 在 `CollectingSystem.ac_remote_bridge_config` 中配置 `bridge`、`stand`、`transMethod` 和工控机 `IP`；`transMethod` 仅支持 `TCP` 或 `serial port`。
+1. 在 `monitor_t2.ac_remote_bridge_config` 中配置 `bridge`、`stand`、`transMethod` 和工控机 `IP`；`transMethod` 仅支持 `TCP` 或 `serial port`。
 2. Server 默认连接 `10.1.11.102:27017`，数据库和集合名已内置。密码不写入仓库，启动前设置：
 
    ```powershell
@@ -89,7 +89,7 @@ python -m http.server 8080 --directory frontend
    .\T2.ACRemote.Server.exe
    ```
 
-   默认认证库为 `admin`；如果账号创建在业务库中，追加 `--MongoAuthDatabase=CollectingSystem`。
+   默认业务库为 `monitor_t2`，认证库为 `admin`；如果账号创建在业务库中，追加 `--MongoAuthDatabase=monitor_t2`。
 
    当前 MongoDB Server 为 `3.4.x`（wire version 5），因此 Server 固定使用最后仍支持该服务端版本的 C# Driver `2.13.3`。该旧驱动存在 NuGet 安全公告，应用必须限制在机场专网并使用只读、最小权限数据库账号；建议后续升级 MongoDB Server，再同步升级驱动。
 3. 再在各工控机启动 `T2.ACRemote.Bridge.exe`。服务器根据连接来源 IP 匹配数据库配置，不再依赖工控机本地 BridgeId。

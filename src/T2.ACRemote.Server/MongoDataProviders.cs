@@ -88,11 +88,13 @@ namespace T2.ACRemote.Server
     public sealed class MongoFlightDataProvider : IFlightDataProvider
     {
         private readonly IMongoCollection<BsonDocument> _collection;
-        public string Name { get { return "MongoDB: CollectingSystem.coll_flight"; } }
+        private readonly string _name;
+        public string Name { get { return _name; } }
 
         public MongoFlightDataProvider(IMongoDatabase database, string collectionName)
         {
             _collection = database.GetCollection<BsonDocument>(collectionName);
+            _name = "MongoDB: " + database.DatabaseNamespace.DatabaseName + "." + collectionName;
         }
 
         public IList<FlightRecord> GetFlights(DateTime utcNow)
