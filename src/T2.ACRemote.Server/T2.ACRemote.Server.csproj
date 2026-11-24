@@ -10,6 +10,6 @@
     <ProjectReference Include="..\T2.ACRemote.Common\T2.ACRemote.Common.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="MongoDB.Driver" Version="3.14.1" />
+    <PackageReference Include="MongoDB.Driver" Version="2.13.3" />
   </ItemGroup>
 </Project>

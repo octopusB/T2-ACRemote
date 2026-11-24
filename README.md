@@ -90,6 +90,8 @@ python -m http.server 8080 --directory frontend
    ```
 
    默认认证库为 `admin`；如果账号创建在业务库中，追加 `--MongoAuthDatabase=CollectingSystem`。
+
+   当前 MongoDB Server 为 `3.4.x`（wire version 5），因此 Server 固定使用最后仍支持该服务端版本的 C# Driver `2.13.3`。该旧驱动存在 NuGet 安全公告，应用必须限制在机场专网并使用只读、最小权限数据库账号；建议后续升级 MongoDB Server，再同步升级驱动。
 3. 再在各工控机启动 `T2.ACRemote.Bridge.exe`。服务器根据连接来源 IP 匹配数据库配置，不再依赖工控机本地 BridgeId。
 4. 需要修改参数时，在 Windows 快捷方式“目标”末尾追加 `--名称=值`，或者设置同名的 `T2AC_名称` 环境变量。例如：
 
