@@ -99,9 +99,9 @@ namespace T2.ACRemote.Server
 
         public IList<FlightRecord> GetFlights(DateTime utcNow)
         {
-            var from = utcNow.AddHours(-6);
+            var from = utcNow.AddHours(-12);
             var to = utcNow.AddHours(24);
-            var filter = Builders<BsonDocument>.Filter.Eq("sign_io", "A") &
+            var filter = Builders<BsonDocument>.Filter.In("sign_io", new[] { "A", "D" }) &
                          Builders<BsonDocument>.Filter.Gte("st", from) &
                          Builders<BsonDocument>.Filter.Lte("st", to) &
                          (Builders<BsonDocument>.Filter.Eq("delete", BsonNull.Value) | Builders<BsonDocument>.Filter.Exists("delete", false));
@@ -115,19 +115,21 @@ namespace T2.ACRemote.Server
             if (!scheduled.HasValue) return null;
             var estimated = Date(document, "et") ?? scheduled.Value;
             var actual = Date(document, "at");
+            var direction = (MongoBridgeConfigurationProvider.Text(document, "sign_io") ?? string.Empty).Trim().ToUpperInvariant();
             var routeText = MongoBridgeConfigurationProvider.Text(document, "fltR") ?? string.Empty;
             var route = routeText.Split(new[] { '-' }, StringSplitOptions.RemoveEmptyEntries);
             var status = MongoBridgeConfigurationProvider.Text(document, "ista");
-            if (actual.HasValue) status = "已到达";
-            else if (string.IsNullOrWhiteSpace(status)) status = "预计到达";
+            if (actual.HasValue) status = direction == "D" ? "已起飞" : "已到达";
+            else if (string.IsNullOrWhiteSpace(status)) status = direction == "D" ? "预计起飞" : "预计到达";
             return new FlightRecord
             {
                 FlightId = MongoBridgeConfigurationProvider.Text(document, "_id"),
                 Flid = MongoBridgeConfigurationProvider.Text(document, "FLID"), Afid = MongoBridgeConfigurationProvider.Text(document, "AFID"),
                 FlightNumber = MongoBridgeConfigurationProvider.Text(document, "flt"), StandId = MongoBridgeConfigurationProvider.Text(document, "stand"),
                 Origin = route.Length > 0 ? route[0] : string.Empty, Destination = route.Length > 1 ? route[route.Length - 1] : string.Empty,
-                Route = routeText, Direction = "A", ScheduledArrivalUtc = scheduled.Value, EstimatedArrivalUtc = estimated,
-                ScheduledDepartureUtc = scheduled.Value, EstimatedDepartureUtc = estimated, ActualArrivalUtc = actual,
+                Route = routeText, Direction = direction, ScheduledArrivalUtc = scheduled.Value, EstimatedArrivalUtc = estimated,
+                ScheduledDepartureUtc = scheduled.Value, EstimatedDepartureUtc = estimated,
+                ActualArrivalUtc = direction == "A" ? actual : null, ActualDepartureUtc = direction == "D" ? actual : null,
                 EstimatedFlightMinutes = 0, Status = status, DataSource = Name,
                 UpdatedUtc = Date(document, "u_t") ?? DateTime.UtcNow,
                 Airline = MongoBridgeConfigurationProvider.Text(document, "airline"), AircraftNumber = MongoBridgeConfigurationProvider.Text(document, "pnum"),

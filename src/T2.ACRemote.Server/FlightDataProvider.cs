@@ -30,8 +30,8 @@ namespace T2.ACRemote.Server
             {
                 if ((utcNow - _lastMutationUtc).TotalSeconds >= 10) Mutate(utcNow);
                 return _documents
-                    .Where(x => x.sign_io == "A" && x.delete == null && !string.IsNullOrWhiteSpace(x.stand))
-                    .Select(MapArrival).OrderBy(x => x.EstimatedArrivalUtc).ToList();
+                    .Where(x => (x.sign_io == "A" || x.sign_io == "D") && x.delete == null && !string.IsNullOrWhiteSpace(x.stand))
+                    .Select(MapFlight).OrderBy(OperationTime).ToList();
             }
         }
 
@@ -102,23 +102,33 @@ namespace T2.ACRemote.Server
             _lastMutationUtc = now;
         }
 
-        private FlightRecord MapArrival(MongoFlightDocument x)
+        private FlightRecord MapFlight(MongoFlightDocument x)
         {
             var route = (x.fltR ?? string.Empty).Split(new[] { '-' }, StringSplitOptions.RemoveEmptyEntries);
             var estimated = x.et ?? x.st;
+            var departure = x.sign_io == "D";
             return new FlightRecord
             {
                 FlightId = x._id, Flid = x.FLID, Afid = x.AFID, FlightNumber = x.flt,
                 Origin = route.Length > 0 ? route[0] : string.Empty,
                 Destination = route.Length > 1 ? route[route.Length - 1] : "广州",
-                StandId = x.stand, ScheduledDepartureUtc = x.st.AddMinutes(-x.EstimatedFlightMinutes),
-                EstimatedDepartureUtc = estimated.AddMinutes(-x.EstimatedFlightMinutes),
-                ScheduledArrivalUtc = x.st, EstimatedArrivalUtc = estimated,
+                StandId = x.stand,
+                ScheduledDepartureUtc = departure ? x.st : x.st.AddMinutes(-x.EstimatedFlightMinutes),
+                EstimatedDepartureUtc = departure ? estimated : estimated.AddMinutes(-x.EstimatedFlightMinutes),
+                ScheduledArrivalUtc = departure ? x.st.AddMinutes(x.EstimatedFlightMinutes) : x.st,
+                EstimatedArrivalUtc = departure ? estimated.AddMinutes(x.EstimatedFlightMinutes) : estimated,
                 EstimatedFlightMinutes = x.EstimatedFlightMinutes, Status = x.ista, DataSource = Name,
-                UpdatedUtc = x.u_t, Direction = x.sign_io, Route = x.fltR, ActualArrivalUtc = x.at,
+                UpdatedUtc = x.u_t, Direction = x.sign_io, Route = x.fltR,
+                ActualArrivalUtc = x.sign_io == "A" ? x.at : null, ActualDepartureUtc = x.sign_io == "D" ? x.at : null,
                 Airline = x.airline, AircraftNumber = x.pnum, AircraftModel = x.pmodel,
                 Terminal = x.terminal, TrafficType = x.tatt
             };
+        }
+
+        private static DateTime OperationTime(FlightRecord flight)
+        {
+            return string.Equals(flight.Direction, "D", StringComparison.OrdinalIgnoreCase)
+                ? flight.EstimatedDepartureUtc : flight.EstimatedArrivalUtc;
         }
     }
 

@@ -34,7 +34,10 @@ function button(label, className, action) { const node = document.createElement(
 function linkageStateFor(bridgeId) { return (linkage.Bridges || []).find(x => String(x.BridgeId).toLowerCase() === String(bridgeId).toLowerCase()); }
 function parseServerDate(value) { if (!value) return null; const match = /^\/Date\((-?\d+)/.exec(value); return match ? new Date(Number(match[1])) : new Date(value); }
 function formatTime(value) { const date = parseServerDate(value); if (!date || Number.isNaN(date.getTime())) return '—'; return date.toLocaleString('zh-CN', { hour12: false, month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' }); }
-function deviationMinutes(flight) { return Math.round((parseServerDate(flight.EstimatedArrivalUtc) - parseServerDate(flight.ScheduledArrivalUtc)) / 60000); }
+function isDeparture(flight) { return String(flight.Direction || '').toUpperCase() === 'D'; }
+function scheduledTime(flight) { return isDeparture(flight) ? flight.ScheduledDepartureUtc : flight.ScheduledArrivalUtc; }
+function estimatedTime(flight) { return isDeparture(flight) ? flight.EstimatedDepartureUtc : flight.EstimatedArrivalUtc; }
+function deviationMinutes(flight) { return Math.round((parseServerDate(estimatedTime(flight)) - parseServerDate(scheduledTime(flight))) / 60000); }
 
 function renderBridges() {
   elements.bridgeRows.replaceChildren();
@@ -92,10 +95,11 @@ function renderFlights() {
   elements.flightRows.replaceChildren();
   for (const flight of visible) {
     const row = document.createElement('tr');
-    const values = [flight.FlightNumber, flight.StandId, `${flight.Origin} → ${flight.Destination}`, flight.EstimatedFlightMinutes > 0 ? `${flight.EstimatedFlightMinutes} 分钟` : '—', formatTime(flight.ScheduledArrivalUtc), formatTime(flight.EstimatedArrivalUtc)];
+    const direction = isDeparture(flight) ? '出港' : '进港';
+    const values = [flight.FlightNumber, direction, flight.StandId, `${flight.Origin} → ${flight.Destination}`, flight.EstimatedFlightMinutes > 0 ? `${flight.EstimatedFlightMinutes} 分钟` : '—', formatTime(scheduledTime(flight)), formatTime(estimatedTime(flight))];
     for (const value of values) { const cell = document.createElement('td'); cell.textContent = value ?? '—'; row.append(cell); }
     const offset = deviationMinutes(flight); const deviation = document.createElement('td'); deviation.append(badge(offset === 0 ? '准点' : `${offset > 0 ? '+' : ''}${offset} 分钟`, offset > 3 ? 'badge-cut' : 'badge-off')); row.append(deviation);
-    const status = document.createElement('td'); status.append(badge(flight.Status || '预计到达', flight.Status === '已到达' ? 'badge-off' : 'badge-on')); row.append(status);
+    const status = document.createElement('td'); status.append(badge(flight.Status || (isDeparture(flight) ? '预计起飞' : '预计到达'), flight.Status === '已到达' || flight.Status === '已起飞' ? 'badge-off' : 'badge-on')); row.append(status);
     const updated = document.createElement('td'); updated.textContent = formatTime(flight.UpdatedUtc); row.append(updated);
     elements.flightRows.append(row);
   }

@@ -11,14 +11,14 @@ MongoDB 航班/桥配置 -> Server API <- 长连接/HMAC -> 工控机中转程�
 - 服务器监听工控机主动连接，维护登机桥在线状态并只提供 JSON REST API；前端单独部署。
 - 工控机轮询 DI1，通过 DO1 控制新增并联启动回路，通过 DO2 控制串联于原启动回路的常闭继电器。
 - Server 从 MongoDB `ac_remote_bridge_config` 读取全部桥，通过工控机来源 IP 匹配桥号、机位和传输方式；数据库中的离线桥也会显示在页面。
-- 航班联动服务从 MongoDB `coll_flight` 读取进港航班，根据 `stand`、`st`、`et` 自动启停；桥与机位关系以桥配置集合为准。
+- 航班联动服务从 MongoDB `coll_flight` 读取进港和出港航班，根据 `stand`、`st`、`et` 自动启停；优先用 `FLID/AFID` 及机号关联过站航班，从进港前持续保持到对应出港后。桥与机位关系以桥配置集合为准。
 - 通信帧使用 HMAC-SHA256 验证，HTTP API 使用 `X-Api-Key`。生产环境仍应部署在机场专网/VPN 内，并在反向代理终止 HTTPS。
 
 ## 航班联动
 
 - 默认提前 `15` 分钟开启，到达后 `20` 分钟没有新航班时关闭，页面可在 `0-240` 分钟范围内调整。
 - 支持每个 Bridge 单独开启/关闭，也支持一键开启或关闭全部当前在线 Bridge。
-- 真实数据来自 `monitor_t2.coll_flight`；空调联动只使用 `sign_io=A`、未删除且有机位的进港航班。
+- 真实数据来自 `monitor_t2.coll_flight`；空调联动使用 `sign_io=A` 进港和 `sign_io=D` 出港中未删除且有机位的航班。
 - `flt` 为航班号，`stand` 为机位，`st` 为计划到达时间，`et` 为预计到达时间；`et` 为空时回退到 `st`。
 - 航班联动关闭时会发送 `Release`，释放 DO1/DO2 并恢复原登机桥联动控制。
 

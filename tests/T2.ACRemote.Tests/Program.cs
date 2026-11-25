@@ -13,6 +13,7 @@ namespace T2.ACRemote.Tests
             StartWhenStopped(); RejectStartWhenRunning(); StopWhenRunning(); StopWhenStopped(); ReleaseRestoresLinkage(); BridgeStartReleasesRemoteStart(); BridgeStopReleasesRemoteStop();
             CommandLineSettingsOverrideDefaults(); EnvironmentSettingsOverrideDefaults();
             MultiBridgeStandNormalization(); FlightWindowStartsEarly(); FlightWindowClosesAfterIdle();
+            TurnaroundKeepsRunningUntilDeparture(); DepartureWindowStartsEarly(); CompletedTurnaroundClosesAfterIdle();
             RegisteredConfigurationRoundTrip(); OfflineConfiguredBridgeIsListed();
             Console.WriteLine("PASS: " + _tests + " safety-state tests");
         }
@@ -28,6 +29,33 @@ namespace T2.ACRemote.Tests
         private static void MultiBridgeStandNormalization() { Yes(FlightLinkageRules.NormalizeStandId("275A") == "275" && FlightLinkageRules.NormalizeStandId("275B") == "275", "multi-bridge stand normalization"); }
         private static void FlightWindowStartsEarly() { var now = DateTime.UtcNow; Yes(FlightLinkageRules.ShouldRun(now, new[] { now.AddMinutes(10) }, 15, 20), "flight window starts early"); }
         private static void FlightWindowClosesAfterIdle() { var now = DateTime.UtcNow; Yes(!FlightLinkageRules.ShouldRun(now, new[] { now.AddMinutes(-21) }, 15, 20), "flight window closes after idle"); }
+        private static void TurnaroundKeepsRunningUntilDeparture()
+        {
+            var now = DateTime.UtcNow;
+            var arrival = Flight("A", now.AddMinutes(-40), "A1", "D1", "B6683");
+            var departure = Flight("D", now.AddMinutes(50), "D1", "A1", "B6683");
+            Yes(FlightLinkageService.ShouldRun(now, new[] { arrival, departure }, 15, 20), "turnaround remains active until departure");
+        }
+        private static void DepartureWindowStartsEarly()
+        {
+            var now = DateTime.UtcNow;
+            Yes(FlightLinkageService.ShouldRun(now, new[] { Flight("D", now.AddMinutes(10), "D2", null, "B7788") }, 15, 20), "departure window starts early");
+        }
+        private static void CompletedTurnaroundClosesAfterIdle()
+        {
+            var now = DateTime.UtcNow;
+            var arrival = Flight("A", now.AddHours(-2), "A3", "D3", "B8899");
+            var departure = Flight("D", now.AddMinutes(-21), "D3", "A3", "B8899");
+            Yes(!FlightLinkageService.ShouldRun(now, new[] { arrival, departure }, 15, 20), "completed turnaround closes after idle");
+        }
+        private static FlightRecord Flight(string direction, DateTime operationTime, string flid, string afid, string aircraft)
+        {
+            return new FlightRecord
+            {
+                Direction = direction, Flid = flid, Afid = afid, AircraftNumber = aircraft,
+                EstimatedArrivalUtc = operationTime, EstimatedDepartureUtc = operationTime
+            };
+        }
         private static void RegisteredConfigurationRoundTrip() { var x = new RegisteredMessage { BridgeId = "277A", StandId = "277", TransportMethod = "serial port", SerialPortName = "COM4" }; var y = Json.Deserialize<RegisteredMessage>(Json.Serialize(x)); Yes(y.BridgeId == "277A" && y.TransportMethod == "serial port" && y.SerialPortName == "COM4", "registered bridge configuration"); }
         private static void OfflineConfiguredBridgeIsListed() { var registry = new BridgeRegistry(new Configs()); var status = registry.Statuses()[0]; Yes(status.BridgeId == "277A" && status.StandId == "277" && !status.Online && status.TransportMethod == "serial port", "offline configured bridge listing"); }
         private static AirConditionerController Controller(Fake f) { return new AirConditionerController(f, "B1"); }

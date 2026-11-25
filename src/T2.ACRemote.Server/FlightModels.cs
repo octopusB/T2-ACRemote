@@ -30,6 +30,7 @@ namespace T2.ACRemote.Server
         [DataMember(Order = 21)] public string AircraftModel { get; set; }
         [DataMember(Order = 22)] public string Terminal { get; set; }
         [DataMember(Order = 23)] public string TrafficType { get; set; }
+        [DataMember(Order = 24)] public DateTime? ActualDepartureUtc { get; set; }
     }
 
     [DataContract]
