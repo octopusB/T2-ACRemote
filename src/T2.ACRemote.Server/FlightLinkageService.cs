@@ -124,7 +124,7 @@ namespace T2.ACRemote.Server
         {
             var query = _flights.AsEnumerable();
             if (!string.IsNullOrWhiteSpace(standId)) query = query.Where(x => string.Equals(x.StandId, NormalizeStandId(standId), StringComparison.OrdinalIgnoreCase));
-            return query.OrderBy(x => x.EstimatedArrivalUtc).ToList();
+            return query.OrderBy(OperationTime).ToList();
         }
 
         public bool IsEnabled(string bridgeId)
@@ -140,7 +140,59 @@ namespace T2.ACRemote.Server
 
         public static bool ShouldRun(DateTime utcNow, IEnumerable<FlightRecord> flights, int startBeforeMinutes, int stopAfterMinutes)
         {
-            return FlightLinkageRules.ShouldRun(utcNow, flights.Select(x => x.EstimatedArrivalUtc), startBeforeMinutes, stopAfterMinutes);
+            var all = flights == null ? new List<FlightRecord>() : flights.Where(x => x != null).ToList();
+            var departures = all.Where(IsDeparture).OrderBy(OperationTime).ToList();
+
+            foreach (var departure in departures)
+            {
+                var operation = DepartureTime(departure);
+                if (utcNow >= operation.AddMinutes(-startBeforeMinutes) && utcNow <= operation.AddMinutes(stopAfterMinutes)) return true;
+            }
+
+            foreach (var arrival in all.Where(x => !IsDeparture(x)))
+            {
+                var arrivalTime = ArrivalTime(arrival);
+                var windowStart = arrivalTime.AddMinutes(-startBeforeMinutes);
+                var windowEnd = arrivalTime.AddMinutes(stopAfterMinutes);
+                var candidates = departures.Where(x => DepartureTime(x) >= arrivalTime.AddMinutes(-30) && DepartureTime(x) <= arrivalTime.AddHours(12)).ToList();
+                var linkedDeparture = candidates.FirstOrDefault(x => IsTurnaroundPair(arrival, x)) ?? candidates.FirstOrDefault();
+                if (linkedDeparture != null)
+                {
+                    var departureEnd = DepartureTime(linkedDeparture).AddMinutes(stopAfterMinutes);
+                    if (departureEnd > windowEnd) windowEnd = departureEnd;
+                }
+                if (utcNow >= windowStart && utcNow <= windowEnd) return true;
+            }
+            return false;
+        }
+
+        private static bool IsDeparture(FlightRecord flight)
+        {
+            return string.Equals(flight.Direction, "D", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static DateTime OperationTime(FlightRecord flight)
+        {
+            return IsDeparture(flight) ? DepartureTime(flight) : ArrivalTime(flight);
+        }
+
+        private static DateTime ArrivalTime(FlightRecord flight)
+        {
+            return flight.ActualArrivalUtc ?? flight.EstimatedArrivalUtc;
+        }
+
+        private static DateTime DepartureTime(FlightRecord flight)
+        {
+            return flight.ActualDepartureUtc ?? flight.EstimatedDepartureUtc;
+        }
+
+        private static bool IsTurnaroundPair(FlightRecord arrival, FlightRecord departure)
+        {
+            var crossReferenced = (!string.IsNullOrWhiteSpace(arrival.Flid) && string.Equals(arrival.Flid, departure.Afid, StringComparison.OrdinalIgnoreCase)) ||
+                                  (!string.IsNullOrWhiteSpace(arrival.Afid) && string.Equals(arrival.Afid, departure.Flid, StringComparison.OrdinalIgnoreCase));
+            var sameAircraft = !string.IsNullOrWhiteSpace(arrival.AircraftNumber) &&
+                               string.Equals(arrival.AircraftNumber, departure.AircraftNumber, StringComparison.OrdinalIgnoreCase);
+            return crossReferenced || sameAircraft;
         }
 
         private void Run()
@@ -162,8 +214,8 @@ namespace T2.ACRemote.Server
 
             foreach (var bridgeId in _registry.BridgeIds())
             {
-                var standId = NormalizeStandId(bridgeId);
-                var relevant = _flights.Where(x => string.Equals(x.StandId, standId, StringComparison.OrdinalIgnoreCase)).OrderBy(x => x.EstimatedArrivalUtc).ToList();
+                var standId = _registry.GetStandId(bridgeId) ?? NormalizeStandId(bridgeId);
+                var relevant = _flights.Where(x => string.Equals(x.StandId, standId, StringComparison.OrdinalIgnoreCase)).OrderBy(OperationTime).ToList();
                 var shouldRun = ShouldRun(now, relevant, before, after);
                 var state = _states.GetOrAdd(bridgeId, CreateState);
                 state.BridgeId = bridgeId;
@@ -171,7 +223,7 @@ namespace T2.ACRemote.Server
                 state.Enabled = IsEnabled(bridgeId);
                 state.ShouldRun = shouldRun;
                 state.RelevantFlights = relevant;
-                state.AutomationStatus = !state.Enabled ? "未启用" : shouldRun ? "航班窗口内，应开启" : "无有效航班，应关闭";
+                state.AutomationStatus = !state.Enabled ? "未启用" : shouldRun ? "进出港保障窗口内，应开启" : "无有效进出港航班，应关闭";
                 if (state.Enabled) ApplyDesiredState(state, shouldRun, now);
             }
         }
@@ -210,7 +262,7 @@ namespace T2.ACRemote.Server
             return new BridgeFlightLinkageState
             {
                 BridgeId = bridgeId,
-                StandId = NormalizeStandId(bridgeId),
+                StandId = _registry.GetStandId(bridgeId) ?? NormalizeStandId(bridgeId),
                 Enabled = IsEnabled(bridgeId),
                 AutomationStatus = "等待调度",
                 RelevantFlights = new List<FlightRecord>()

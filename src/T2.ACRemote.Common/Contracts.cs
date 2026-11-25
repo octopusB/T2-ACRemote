@@ -30,6 +30,15 @@ namespace T2.ACRemote.Common
     }
 
     [DataContract]
+    public sealed class RegisteredMessage
+    {
+        [DataMember(Order = 1)] public string BridgeId { get; set; }
+        [DataMember(Order = 2)] public string StandId { get; set; }
+        [DataMember(Order = 3)] public string TransportMethod { get; set; }
+        [DataMember(Order = 4)] public string SerialPortName { get; set; }
+    }
+
+    [DataContract]
     public sealed class CommandMessage
     {
         [DataMember(Order = 1)] public string RequestId { get; set; }
@@ -58,6 +67,10 @@ namespace T2.ACRemote.Common
         [DataMember(Order = 7)] public DateTime UpdatedUtc { get; set; }
         [DataMember(Order = 8)] public DateTime? LeaseExpiresUtc { get; set; }
         [DataMember(Order = 9)] public string Error { get; set; }
+        [DataMember(Order = 10)] public string StandId { get; set; }
+        [DataMember(Order = 11)] public string ConfiguredIp { get; set; }
+        [DataMember(Order = 12)] public string TransportMethod { get; set; }
+        [DataMember(Order = 13)] public bool Online { get; set; }
     }
 }
 

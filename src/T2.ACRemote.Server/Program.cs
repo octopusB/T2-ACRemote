@@ -24,15 +24,26 @@ namespace T2.ACRemote.Server
                 { "AllowedOrigins", "http://10.1.3.5:8080,http://localhost:8080,http://localhost:18080,http://127.0.0.1:8080,http://127.0.0.1:18080" },
                 { "DefaultLeaseSeconds", "300" },
                 { "FlightStartBeforeMinutes", "15" },
-                { "FlightStopAfterMinutes", "20" }
+                { "FlightStopAfterMinutes", "20" },
+                { "MongoHost", "10.1.11.102" },
+                { "MongoPort", "27017" },
+                { "MongoDatabase", "monitor_t2" },
+                { "MongoAuthDatabase", "monitor_t2" },
+                { "MongoUser", "monitorT2User" },
+                { "MongoPassword", "" },
+                { "FlightCollection", "coll_flight" },
+                { "BridgeConfigCollection", "ac_remote_bridge_config" }
             });
             Console.CancelKeyPress += (s, e) => { e.Cancel = true; _stopping = true; };
-            var registry = new BridgeRegistry();
+            var database = MongoConnectionFactory.Create(Get("MongoHost"), GetInt("MongoPort"), Get("MongoDatabase"), Get("MongoAuthDatabase"), Get("MongoUser"), Get("MongoPassword"));
+            var bridgeConfigurations = new MongoBridgeConfigurationProvider(database, Get("BridgeConfigCollection"));
+            Console.WriteLine("MongoDB 已连接，读取到 {0} 条桥配置。", bridgeConfigurations.GetConfigurations().Count);
+            var registry = new BridgeRegistry(bridgeConfigurations);
             var bridgeListener = new TcpListener(IPAddress.Any, GetInt("BridgeListenPort"));
             bridgeListener.Start();
             var acceptThread = new Thread(() => AcceptBridges(bridgeListener, registry)) { IsBackground = true };
             acceptThread.Start();
-            IFlightDataProvider flightProvider = new MockFlightDataProvider(DateTime.UtcNow);
+            IFlightDataProvider flightProvider = new MongoFlightDataProvider(database, Get("FlightCollection"));
             var flightLinkage = new FlightLinkageService(registry, flightProvider, GetInt("FlightStartBeforeMinutes"), GetInt("FlightStopAfterMinutes"));
             flightLinkage.Start();
             var api = new HttpApi(registry, flightLinkage, Get("HttpPrefix"), Get("ApiKey"), Get("AllowedOrigins"), GetInt("DefaultLeaseSeconds"));
@@ -64,11 +75,14 @@ namespace T2.ACRemote.Server
                 var envelope = channel.ReadEnvelope();
                 if (envelope.Type != MessageTypes.Register) throw new InvalidOperationException("First frame must register the bridge.");
                 var registration = SecureFrameChannel.Payload<RegisterMessage>(envelope);
-                if (string.IsNullOrWhiteSpace(registration.BridgeId) || registration.BridgeId.Length > 100) throw new InvalidOperationException("Invalid bridge ID.");
-                var session = new BridgeSession(client, channel, registration.BridgeId);
+                var endpoint = client.Client.RemoteEndPoint as IPEndPoint;
+                var remoteIp = endpoint == null ? string.Empty : MongoBridgeConfigurationProvider.NormalizeIp(endpoint.Address.ToString());
+                var configuration = registry.FindConfigurationByIp(remoteIp);
+                if (configuration == null) throw new InvalidOperationException("工控机 IP " + remoteIp + " 未在 ac_remote_bridge_config 中配置。");
+                var session = new BridgeSession(client, channel, configuration.BridgeId, remoteIp);
                 registry.Add(session);
-                channel.Write(MessageTypes.Registered, registration);
-                Console.WriteLine("{0:O} 工控机上线: {1} ({2})", DateTime.UtcNow, registration.BridgeId, registration.MachineName);
+                channel.Write(MessageTypes.Registered, new RegisteredMessage { BridgeId = configuration.BridgeId, StandId = configuration.StandId, TransportMethod = configuration.TransportMethod, SerialPortName = "COM4" });
+                Console.WriteLine("{0:O} 工控机上线: {1}，IP {2}，传输方式 {3} ({4})", DateTime.UtcNow, configuration.BridgeId, remoteIp, configuration.TransportMethod, registration.MachineName);
                 session.Run(registry);
             }
             catch (Exception ex) { Console.WriteLine("{0:O} 工控机连接失败: {1}", DateTime.UtcNow, ex.Message); try { client.Close(); } catch { } }
@@ -82,7 +96,8 @@ namespace T2.ACRemote.Server
             Console.WriteLine("参数格式: --名称=值；也可使用 T2AC_名称 环境变量。");
             Console.WriteLine("示例:");
             Console.WriteLine("  T2.ACRemote.Server.exe --SharedSecret=至少16位密钥 --ApiKey=管理密钥");
-            Console.WriteLine("可用参数: BridgeListenPort, HttpPrefix, SharedSecret, ApiKey, AllowedOrigins, DefaultLeaseSeconds, FlightStartBeforeMinutes, FlightStopAfterMinutes");
+            Console.WriteLine("MongoDB 密码建议通过环境变量 T2AC_MONGOPASSWORD 配置。");
+            Console.WriteLine("可用参数: BridgeListenPort, HttpPrefix, SharedSecret, ApiKey, AllowedOrigins, DefaultLeaseSeconds, FlightStartBeforeMinutes, FlightStopAfterMinutes, MongoHost, MongoPort, MongoDatabase, MongoAuthDatabase, MongoUser, MongoPassword, FlightCollection, BridgeConfigCollection");
         }
     }
 }

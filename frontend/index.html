@@ -53,7 +53,7 @@
           <label><span>航班后无新航班多少分钟关闭</span><input id="stopAfterMinutes" type="number" min="0" max="240" value="20"><small>时间窗重叠时空调保持开启</small></label>
           <div class="linkage-save"><span id="allLinkageStatus" class="badge badge-off">未全部启用</span><button id="saveLinkageSettings" class="button button-primary" type="button">保存联动时间</button></div>
         </div>
-        <p class="source-note">模拟数据源：<strong id="flightDataSource">等待服务器</strong>。后端已预留数据库数据提供接口。</p>
+        <p class="source-note">航班数据源：<strong id="flightDataSource">等待服务器</strong>。</p>
       </section>
 
       <section class="summary-grid" aria-label="状态摘要">
@@ -68,7 +68,17 @@
         <div id="emptyState" class="empty-state"><strong>等待状态数据</strong><span>填写 API Key 后点击“刷新全部数据”。</span></div>
         <div class="table-wrap">
           <table id="bridgeTable" hidden>
-            <thead><tr><th>Bridge ID / 机位</th><th>DI1</th><th>DO1</th><th>DO2</th><th>航班联动</th><th>调度判断</th><th>操作</th></tr></thead>
+            <colgroup>
+              <col class="bridge-col-id">
+              <col class="bridge-col-connection">
+              <col class="bridge-col-running">
+              <col class="bridge-col-start">
+              <col class="bridge-col-stop">
+              <col class="bridge-col-linkage">
+              <col class="bridge-col-schedule">
+              <col class="bridge-col-actions">
+            </colgroup>
+            <thead><tr><th>机位/桥</th><th>工控机 / IO</th><th>登机桥运行状态</th><th>空调远程开启状态</th><th>桥启动状态下关闭空调</th><th>航班联动</th><th>调度判断</th><th>操作</th></tr></thead>
             <tbody id="bridgeRows"></tbody>
           </table>
         </div>
@@ -78,14 +88,14 @@
     <section id="flightsView" class="view" hidden>
       <section class="panel" aria-labelledby="flightsTitle">
         <div class="section-heading">
-          <div><p class="section-kicker">LIVE FLIGHTS · MOCK DATA</p><h2 id="flightsTitle">航班动态列表</h2></div>
+          <div><p class="section-kicker">LIVE FLIGHTS · ARRIVAL / DEPARTURE</p><h2 id="flightsTitle">航班动态列表</h2></div>
           <div class="flight-filter"><label for="standFilter">机位筛选</label><select id="standFilter"><option value="">全部机位</option></select><button id="clearStandFilter" class="button button-secondary" type="button">清除筛选</button></div>
         </div>
-        <p class="source-note">预计到达时间会持续轻微浮动，用于模拟实时航班数据。当前来源：<strong id="flightListSource">—</strong></p>
+        <p class="source-note">同时展示进港和出港航班；联动会从进港前保持到对应出港后。当前来源：<strong id="flightListSource">—</strong></p>
         <div id="flightEmptyState" class="empty-state" hidden><strong>没有匹配的航班</strong><span>请清除机位筛选或等待下一次刷新。</span></div>
         <div class="table-wrap">
           <table id="flightTable">
-            <thead><tr><th>航班号</th><th>机位</th><th>航线</th><th>预计飞行</th><th>计划到达</th><th>预计到达</th><th>动态偏差</th><th>状态</th><th>更新时间</th></tr></thead>
+            <thead><tr><th>航班号</th><th>方向</th><th>机位</th><th>航线</th><th>预计飞行</th><th>计划时间</th><th>预计时间</th><th>动态偏差</th><th>状态</th><th>更新时间</th></tr></thead>
             <tbody id="flightRows"></tbody>
           </table>
         </div>
